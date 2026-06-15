@@ -16,11 +16,17 @@ use AndyDefer\PhpVo\ValueObjects\DateTimeVO;
 final class SearchContext
 {
     private SearchQueryVO $query;
+
     private StringTypedCollection $rawData;
+
     private NormalizedWordRecordCollection $preprocessedData;
+
     private SearchResultRecordCollection $results;
+
     private ?string $error = null;
+
     private DateTimeVO $startedAt;
+
     private int $itemsProcessed = 0;
 
     public function __construct(SearchQueryVO $query)

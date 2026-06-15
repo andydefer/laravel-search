@@ -40,7 +40,7 @@ final class TestCheckPoint extends Model implements Searchable
      */
     public function getSearchableFields(): SearchableFieldCollection
     {
-        $collection = new SearchableFieldCollection();
+        $collection = new SearchableFieldCollection;
 
         $collection->add(new SearchableFieldRecord(
             name: 'name',
@@ -89,6 +89,6 @@ final class TestCheckPoint extends Model implements Searchable
      */
     public function getProtectedFields(): StringTypedCollection
     {
-        return new StringTypedCollection();
+        return new StringTypedCollection;
     }
 }

@@ -71,12 +71,14 @@ final class SearchConfig implements SearchConfigInterface
     public function getCacheTtl(): int
     {
         $cache = $this->config->get('fuzzy-search.cache', []);
+
         return (int) ($cache['ttl'] ?? 3600);
     }
 
     public function getCachePrefix(): string
     {
         $cache = $this->config->get('fuzzy-search.cache', []);
+
         return (string) ($cache['prefix'] ?? 'fuzzy_search_');
     }
 

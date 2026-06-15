@@ -11,17 +11,17 @@ use AndyDefer\LaravelSearch\Records\SearchableFieldRecord;
 use AndyDefer\LaravelSearch\Services\NormalizerService;
 use AndyDefer\LaravelSearch\Tests\UnitTestCase;
 use AndyDefer\PhpServices\Enums\PrimitiveType;
-use PHPUnit\Framework\TestCase;
 
 final class NormalizerServiceTest extends UnitTestCase
 {
     private NormalizerContext $context;
+
     private NormalizerService $normalizer;
 
     protected function setUp(): void
     {
         parent::setUp();
-        $this->context = new NormalizerContext();
+        $this->context = new NormalizerContext;
         $this->normalizer = new NormalizerService($this->context);
     }
 
@@ -32,37 +32,37 @@ final class NormalizerServiceTest extends UnitTestCase
 
     // ==================== Tests: normalizeString ====================
 
-    public function test_normalizeString_removes_accents(): void
+    public function test_normalize_string_removes_accents(): void
     {
         $result = $this->normalizer->normalizeString('Éléphant');
         $this->assertSame('elephant', $result);
     }
 
-    public function test_normalizeString_converts_to_lowercase(): void
+    public function test_normalize_string_converts_to_lowercase(): void
     {
         $result = $this->normalizer->normalizeString('HELLO World');
         $this->assertSame('hello world', $result);
     }
 
-    public function test_normalizeString_removes_special_characters(): void
+    public function test_normalize_string_removes_special_characters(): void
     {
         $result = $this->normalizer->normalizeString('Hello@World!');
         $this->assertSame('hello world', $result);
     }
 
-    public function test_normalizeString_preserves_hyphens_and_apostrophes(): void
+    public function test_normalize_string_preserves_hyphens_and_apostrophes(): void
     {
         $result = $this->normalizer->normalizeString("Jean-Pierre d'Arc");
         $this->assertSame("jean-pierre d'arc", $result);
     }
 
-    public function test_normalizeString_trims_extra_spaces(): void
+    public function test_normalize_string_trims_extra_spaces(): void
     {
         $result = $this->normalizer->normalizeString('  Hello   World  ');
         $this->assertSame('hello world', $result);
     }
 
-    public function test_normalizeString_caches_result(): void
+    public function test_normalize_string_caches_result(): void
     {
         $result1 = $this->normalizer->normalizeString('Test String');
         $result2 = $this->normalizer->normalizeString('Test String');
@@ -72,13 +72,13 @@ final class NormalizerServiceTest extends UnitTestCase
         $this->assertSame('test string', $this->context->getNormalized('Test String'));
     }
 
-    public function test_normalizeString_handles_accented_characters(): void
+    public function test_normalize_string_handles_accented_characters(): void
     {
         $result = $this->normalizer->normalizeString('Café Crème Brûlée');
         $this->assertSame('cafe creme brulee', $result);
     }
 
-    public function test_normalizeString_handles_german_umlauts(): void
+    public function test_normalize_string_handles_german_umlauts(): void
     {
         $result = $this->normalizer->normalizeString('München Straße');
         $this->assertSame('munchen strasse', $result);
@@ -86,7 +86,7 @@ final class NormalizerServiceTest extends UnitTestCase
 
     // ==================== Tests: normalizeField ====================
 
-    public function test_normalizeField_normalizes_unprotected_field(): void
+    public function test_normalize_field_normalizes_unprotected_field(): void
     {
         $field = new SearchableFieldRecord(
             name: 'description',
@@ -94,7 +94,7 @@ final class NormalizerServiceTest extends UnitTestCase
             primitive_type: PrimitiveType::STRING,
         );
 
-        $protectedFields = new StringTypedCollection();
+        $protectedFields = new StringTypedCollection;
 
         $result = $this->normalizer->normalizeField($field, $protectedFields);
 
@@ -103,7 +103,7 @@ final class NormalizerServiceTest extends UnitTestCase
         $this->assertSame(PrimitiveType::STRING, $result->primitive_type);
     }
 
-    public function test_normalizeField_does_not_normalize_protected_field(): void
+    public function test_normalize_field_does_not_normalize_protected_field(): void
     {
         $field = new SearchableFieldRecord(
             name: 'email',
@@ -111,7 +111,7 @@ final class NormalizerServiceTest extends UnitTestCase
             primitive_type: PrimitiveType::STRING,
         );
 
-        $protectedFields = new StringTypedCollection();
+        $protectedFields = new StringTypedCollection;
         $protectedFields->add('email');
 
         $result = $this->normalizer->normalizeField($field, $protectedFields);
@@ -120,7 +120,7 @@ final class NormalizerServiceTest extends UnitTestCase
         $this->assertSame('John.Doe@Example.com', $result->value);
     }
 
-    public function test_normalizeField_preserves_original_type(): void
+    public function test_normalize_field_preserves_original_type(): void
     {
         $field = new SearchableFieldRecord(
             name: 'age',
@@ -128,7 +128,7 @@ final class NormalizerServiceTest extends UnitTestCase
             primitive_type: PrimitiveType::INT,
         );
 
-        $protectedFields = new StringTypedCollection();
+        $protectedFields = new StringTypedCollection;
 
         $result = $this->normalizer->normalizeField($field, $protectedFields);
 
@@ -137,9 +137,9 @@ final class NormalizerServiceTest extends UnitTestCase
 
     // ==================== Tests: normalizeCollection ====================
 
-    public function test_normalizeCollection_normalizes_all_fields(): void
+    public function test_normalize_collection_normalizes_all_fields(): void
     {
-        $collection = new SearchableFieldCollection();
+        $collection = new SearchableFieldCollection;
         $collection->add(new SearchableFieldRecord(
             name: 'title',
             value: 'Hello World!',
@@ -151,7 +151,7 @@ final class NormalizerServiceTest extends UnitTestCase
             primitive_type: PrimitiveType::STRING,
         ));
 
-        $protectedFields = new StringTypedCollection();
+        $protectedFields = new StringTypedCollection;
 
         $result = $this->normalizer->normalizeCollection($collection, $protectedFields);
 
@@ -160,9 +160,9 @@ final class NormalizerServiceTest extends UnitTestCase
         $this->assertSame('this is a test', $result->last()->value);
     }
 
-    public function test_normalizeCollection_respects_protected_fields(): void
+    public function test_normalize_collection_respects_protected_fields(): void
     {
-        $collection = new SearchableFieldCollection();
+        $collection = new SearchableFieldCollection;
         $collection->add(new SearchableFieldRecord(
             name: 'email',
             value: 'John.Doe@Example.com',
@@ -174,7 +174,7 @@ final class NormalizerServiceTest extends UnitTestCase
             primitive_type: PrimitiveType::STRING,
         ));
 
-        $protectedFields = new StringTypedCollection();
+        $protectedFields = new StringTypedCollection;
         $protectedFields->add('email');
 
         $result = $this->normalizer->normalizeCollection($collection, $protectedFields);
@@ -183,16 +183,16 @@ final class NormalizerServiceTest extends UnitTestCase
         $this->assertSame('john doe', $result->last()->value);
     }
 
-    public function test_normalizeCollection_returns_new_collection(): void
+    public function test_normalize_collection_returns_new_collection(): void
     {
-        $collection = new SearchableFieldCollection();
+        $collection = new SearchableFieldCollection;
         $collection->add(new SearchableFieldRecord(
             name: 'test',
             value: 'Value',
             primitive_type: PrimitiveType::STRING,
         ));
 
-        $protectedFields = new StringTypedCollection();
+        $protectedFields = new StringTypedCollection;
 
         $result = $this->normalizer->normalizeCollection($collection, $protectedFields);
 
@@ -200,10 +200,10 @@ final class NormalizerServiceTest extends UnitTestCase
         $this->assertCount(1, $result);
     }
 
-    public function test_normalizeCollection_handles_empty_collection(): void
+    public function test_normalize_collection_handles_empty_collection(): void
     {
-        $collection = new SearchableFieldCollection();
-        $protectedFields = new StringTypedCollection();
+        $collection = new SearchableFieldCollection;
+        $protectedFields = new StringTypedCollection;
 
         $result = $this->normalizer->normalizeCollection($collection, $protectedFields);
 
@@ -212,9 +212,9 @@ final class NormalizerServiceTest extends UnitTestCase
 
     // ==================== Tests: buildContentString ====================
 
-    public function test_buildContentString_concatenates_field_values(): void
+    public function test_build_content_string_concatenates_field_values(): void
     {
-        $collection = new SearchableFieldCollection();
+        $collection = new SearchableFieldCollection;
         $collection->add(new SearchableFieldRecord(
             name: 'title',
             value: 'Hello',
@@ -231,9 +231,9 @@ final class NormalizerServiceTest extends UnitTestCase
         $this->assertSame('Hello World', $result);
     }
 
-    public function test_buildContentString_handles_single_field(): void
+    public function test_build_content_string_handles_single_field(): void
     {
-        $collection = new SearchableFieldCollection();
+        $collection = new SearchableFieldCollection;
         $collection->add(new SearchableFieldRecord(
             name: 'title',
             value: 'Hello',
@@ -245,9 +245,9 @@ final class NormalizerServiceTest extends UnitTestCase
         $this->assertSame('Hello', $result);
     }
 
-    public function test_buildContentString_handles_empty_collection(): void
+    public function test_build_content_string_handles_empty_collection(): void
     {
-        $collection = new SearchableFieldCollection();
+        $collection = new SearchableFieldCollection;
 
         $result = $this->normalizer->buildContentString($collection);
 
@@ -256,7 +256,7 @@ final class NormalizerServiceTest extends UnitTestCase
 
     // ==================== Tests: getContext ====================
 
-    public function test_getContext_returns_same_context(): void
+    public function test_get_context_returns_same_context(): void
     {
         $context = $this->normalizer->getContext();
 
@@ -265,7 +265,7 @@ final class NormalizerServiceTest extends UnitTestCase
 
     // ==================== Tests: Cache behavior ====================
 
-    public function test_normalizeString_uses_cache_on_second_call(): void
+    public function test_normalize_string_uses_cache_on_second_call(): void
     {
         // Première normalisation - remplit le cache
         $this->normalizer->normalizeString('Unique String');
@@ -284,35 +284,35 @@ final class NormalizerServiceTest extends UnitTestCase
 
     // ==================== Tests: Edge cases ====================
 
-    public function test_normalizeString_handles_empty_string(): void
+    public function test_normalize_string_handles_empty_string(): void
     {
         $result = $this->normalizer->normalizeString('');
 
         $this->assertSame('', $result);
     }
 
-    public function test_normalizeString_handles_only_special_characters(): void
+    public function test_normalize_string_handles_only_special_characters(): void
     {
         $result = $this->normalizer->normalizeString('!!!@@@###');
 
         $this->assertSame('', $result);
     }
 
-    public function test_normalizeString_handles_numbers(): void
+    public function test_normalize_string_handles_numbers(): void
     {
         $result = $this->normalizer->normalizeString('123456');
 
         $this->assertSame('123456', $result);
     }
 
-    public function test_normalizeString_handles_mixed_alphanumeric(): void
+    public function test_normalize_string_handles_mixed_alphanumeric(): void
     {
         $result = $this->normalizer->normalizeString('Product ABC123');
 
         $this->assertSame('product abc123', $result);
     }
 
-    public function test_normalizeField_with_integer_value(): void
+    public function test_normalize_field_with_integer_value(): void
     {
         $field = new SearchableFieldRecord(
             name: 'count',
@@ -320,14 +320,14 @@ final class NormalizerServiceTest extends UnitTestCase
             primitive_type: PrimitiveType::INT,
         );
 
-        $protectedFields = new StringTypedCollection();
+        $protectedFields = new StringTypedCollection;
 
         $result = $this->normalizer->normalizeField($field, $protectedFields);
 
         $this->assertSame('100', $result->value);
     }
 
-    public function test_normalizeField_with_boolean_value(): void
+    public function test_normalize_field_with_boolean_value(): void
     {
         $field = new SearchableFieldRecord(
             name: 'is_active',
@@ -335,7 +335,7 @@ final class NormalizerServiceTest extends UnitTestCase
             primitive_type: PrimitiveType::BOOL,
         );
 
-        $protectedFields = new StringTypedCollection();
+        $protectedFields = new StringTypedCollection;
 
         $result = $this->normalizer->normalizeField($field, $protectedFields);
 

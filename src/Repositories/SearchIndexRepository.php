@@ -36,17 +36,17 @@ final class SearchIndexRepository extends AbstractRepository
         }
 
         if ($filters->content !== null) {
-            $query->where('content', 'like', '%' . $filters->content . '%');
+            $query->where('content', 'like', '%'.$filters->content.'%');
         }
 
         if ($filters->normalized_content !== null) {
-            $query->where('normalized_content', 'like', '%' . $filters->normalized_content . '%');
+            $query->where('normalized_content', 'like', '%'.$filters->normalized_content.'%');
         }
 
         if ($filters->search !== null) {
             $query->where(function ($q) use ($filters) {
-                $q->where('content', 'like', '%' . $filters->search . '%')
-                    ->orWhere('normalized_content', 'like', '%' . $filters->search . '%');
+                $q->where('content', 'like', '%'.$filters->search.'%')
+                    ->orWhere('normalized_content', 'like', '%'.$filters->search.'%');
             });
         }
     }
@@ -81,6 +81,7 @@ final class SearchIndexRepository extends AbstractRepository
 
         if ($existing) {
             $existing->update($record->toArrayWithoutNulls());
+
             return $existing;
         }
 
@@ -130,7 +131,7 @@ final class SearchIndexRepository extends AbstractRepository
      */
     public function deleteAll(): int
     {
-        return $this->buildQuery(new EmptyRecord())->delete();
+        return $this->buildQuery(new EmptyRecord)->delete();
     }
 
     /**
@@ -138,7 +139,7 @@ final class SearchIndexRepository extends AbstractRepository
      */
     public function forceDeleteAll(): int
     {
-        $query = $this->buildQuery(new EmptyRecord());
+        $query = $this->buildQuery(new EmptyRecord);
 
         if ($this->usesSoftDeletes()) {
             return $query->forceDelete();
@@ -160,7 +161,7 @@ final class SearchIndexRepository extends AbstractRepository
      */
     public function countAll(): int
     {
-        return $this->buildQuery(new EmptyRecord())->count();
+        return $this->buildQuery(new EmptyRecord)->count();
     }
 
     /**

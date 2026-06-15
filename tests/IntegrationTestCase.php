@@ -18,7 +18,7 @@ abstract class IntegrationTestCase extends Orchestra
 
         // Configuration par défaut pour les tests AVANT de démarrer l'application
         $this->app['config']->set('jsonl-cache', [
-            'base_path' => sys_get_temp_dir() . '/jsonl_cache_test_' . uniqid(),
+            'base_path' => sys_get_temp_dir().'/jsonl_cache_test_'.uniqid(),
             'default_ttl' => 3600,
             'hash_levels' => 2,
             'enabled' => true,
@@ -57,8 +57,8 @@ abstract class IntegrationTestCase extends Orchestra
     protected function runMigrations(): void
     {
         $migrationPaths = [
-            __DIR__ . '/../src/Migrations',
-            __DIR__ . '/Fixtures/database/migrations',
+            __DIR__.'/../src/Migrations',
+            __DIR__.'/Fixtures/database/migrations',
         ];
 
         foreach ($migrationPaths as $path) {

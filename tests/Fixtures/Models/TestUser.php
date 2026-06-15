@@ -44,7 +44,7 @@ class TestUser extends Model implements Searchable
      */
     public function getSearchableFields(): SearchableFieldCollection
     {
-        $collection = new SearchableFieldCollection();
+        $collection = new SearchableFieldCollection;
 
         $collection->add(new SearchableFieldRecord(
             name: 'name',
@@ -118,7 +118,7 @@ class TestUser extends Model implements Searchable
      */
     public function getProtectedFields(): StringTypedCollection
     {
-        $collection = new StringTypedCollection();
+        $collection = new StringTypedCollection;
 
         // Les emails sont protégés (stop words préservés)
         $collection->add('email');

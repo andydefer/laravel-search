@@ -7,6 +7,7 @@ namespace AndyDefer\LaravelSearch\Tests\Integration\Services;
 use AndyDefer\JsonlCache\Contracts\JsonlCacheInterface;
 use AndyDefer\LaravelSearch\Contexts\SearchContext;
 use AndyDefer\LaravelSearch\Contexts\SearchEngineConfigContext;
+use AndyDefer\LaravelSearch\Contracts\Configs\SearchConfigInterface;
 use AndyDefer\LaravelSearch\Services\SearchEngineService;
 use AndyDefer\LaravelSearch\Tests\IntegrationTestCase;
 use AndyDefer\LaravelSearch\ValueObjects\SearchQueryVO;
@@ -14,14 +15,16 @@ use AndyDefer\LaravelSearch\ValueObjects\SearchQueryVO;
 final class SearchEngineServiceTest extends IntegrationTestCase
 {
     private SearchEngineService $service;
+
     private SearchEngineConfigContext $engineConfigContext;
+
     private JsonlCacheInterface $cache;
 
     protected function setUp(): void
     {
         parent::setUp();
 
-        $config = $this->app->make(\AndyDefer\LaravelSearch\Contracts\Configs\SearchConfigInterface::class);
+        $config = $this->app->make(SearchConfigInterface::class);
         $engineRecord = $config->getEngine();
 
         $this->engineConfigContext = new SearchEngineConfigContext($engineRecord);
@@ -46,12 +49,13 @@ final class SearchEngineServiceTest extends IntegrationTestCase
         $context = new SearchContext($searchQuery);
         $this->service->setData($context, $data);
         $this->service->preprocessData($context);
+
         return $context;
     }
 
     // ==================== Tests: setData and preprocessData ====================
 
-    public function test_setData_stores_data_in_context(): void
+    public function test_set_data_stores_data_in_context(): void
     {
         $query = new SearchQueryVO('test', 10);
         $context = new SearchContext($query);
@@ -63,7 +67,7 @@ final class SearchEngineServiceTest extends IntegrationTestCase
         $this->assertSame('apple', $context->getRawData()->first());
     }
 
-    public function test_preprocessData_generates_normalized_words(): void
+    public function test_preprocess_data_generates_normalized_words(): void
     {
         $context = $this->createSearchContext(['Hello'], 'test');  // Changé: 'Hello World' → 'Hello'
 
@@ -232,7 +236,7 @@ final class SearchEngineServiceTest extends IntegrationTestCase
     {
         $data = [];
         for ($i = 0; $i < 100; $i++) {
-            $data[] = "item_{$i}_" . ($i % 2 === 0 ? 'apple' : 'banana');
+            $data[] = "item_{$i}_".($i % 2 === 0 ? 'apple' : 'banana');
         }
 
         $context = $this->createSearchContext($data, 'apple', 20);
@@ -257,7 +261,7 @@ final class SearchEngineServiceTest extends IntegrationTestCase
         $this->assertTrue($result2->hasResults());
     }
 
-    public function test_clearCache_works(): void
+    public function test_clear_cache_works(): void
     {
         $context = $this->createSearchContext(['apple', 'banana'], 'apple');
 

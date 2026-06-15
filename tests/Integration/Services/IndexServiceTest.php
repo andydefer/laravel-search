@@ -6,8 +6,10 @@ namespace AndyDefer\LaravelSearch\Tests\Integration\Services;
 
 use AndyDefer\DomainStructures\Collections\Utility\StringTypedCollection;
 use AndyDefer\DomainStructures\Services\HydrationService;
+use AndyDefer\LaravelSearch\Contracts\Configs\SearchConfigInterface;
 use AndyDefer\LaravelSearch\Contracts\Services\IndexServiceInterface;
 use AndyDefer\LaravelSearch\Models\SearchIndex;
+use AndyDefer\LaravelSearch\Repositories\SearchIndexRepository;
 use AndyDefer\LaravelSearch\Services\IndexService;
 use AndyDefer\LaravelSearch\Services\NormalizerService;
 use AndyDefer\LaravelSearch\Tests\Fixtures\Models\TestPost;
@@ -18,17 +20,19 @@ use Mockery;
 final class IndexServiceTest extends IntegrationTestCase
 {
     private IndexServiceInterface $indexService;
+
     private TestUser $user;
+
     private TestPost $post;
 
     protected function setUp(): void
     {
         parent::setUp();
 
-        $config = $this->app->make(\AndyDefer\LaravelSearch\Contracts\Configs\SearchConfigInterface::class);
-        $repository = $this->app->make(\AndyDefer\LaravelSearch\Repositories\SearchIndexRepository::class);
+        $config = $this->app->make(SearchConfigInterface::class);
+        $repository = $this->app->make(SearchIndexRepository::class);
         $normalizer = $this->app->make(NormalizerService::class);
-        $hydration = new HydrationService();
+        $hydration = new HydrationService;
 
         $this->indexService = new IndexService($config, $repository, $normalizer, $hydration);
 
@@ -117,7 +121,7 @@ final class IndexServiceTest extends IntegrationTestCase
 
     // ==================== Tests: updateIndex() ====================
 
-    public function test_updateIndex_forces_reindex(): void
+    public function test_update_index_forces_reindex(): void
     {
         $this->indexService->index($this->user);
         $this->user->name = 'Jane Smith';
@@ -131,7 +135,7 @@ final class IndexServiceTest extends IntegrationTestCase
 
     // ==================== Tests: deleteIndex() ====================
 
-    public function test_deleteIndex_removes_index_entry(): void
+    public function test_delete_index_removes_index_entry(): void
     {
         $this->indexService->index($this->user);
         $this->assertSame(1, SearchIndex::count());
@@ -141,7 +145,7 @@ final class IndexServiceTest extends IntegrationTestCase
         $this->assertSame(0, SearchIndex::count());
     }
 
-    public function test_deleteIndex_does_nothing_for_nonexistent_entry(): void
+    public function test_delete_index_does_nothing_for_nonexistent_entry(): void
     {
         $this->assertSame(0, SearchIndex::count());
 
@@ -152,9 +156,9 @@ final class IndexServiceTest extends IntegrationTestCase
 
     // ==================== Tests: indexAll() ====================
 
-    public function test_indexAll_indexes_all_models(): void
+    public function test_index_all_indexes_all_models(): void
     {
-        $models = new StringTypedCollection();
+        $models = new StringTypedCollection;
         $models->add(TestUser::class);
         $models->add(TestPost::class);
 
@@ -166,9 +170,9 @@ final class IndexServiceTest extends IntegrationTestCase
         $this->assertSame(2, SearchIndex::count());
     }
 
-    public function test_indexAll_with_force_reindexes_existing_entries(): void
+    public function test_index_all_with_force_reindexes_existing_entries(): void
     {
-        $models = new StringTypedCollection();
+        $models = new StringTypedCollection;
         $models->add(TestUser::class);
 
         $this->indexService->indexAll($models);
@@ -181,9 +185,9 @@ final class IndexServiceTest extends IntegrationTestCase
         $this->assertSame(1, SearchIndex::count());
     }
 
-    public function test_indexAll_without_force_skips_existing_entries(): void
+    public function test_index_all_without_force_skips_existing_entries(): void
     {
-        $models = new StringTypedCollection();
+        $models = new StringTypedCollection;
         $models->add(TestUser::class);
 
         $this->indexService->indexAll($models);
@@ -194,9 +198,9 @@ final class IndexServiceTest extends IntegrationTestCase
         $this->assertSame(1, SearchIndex::count());
     }
 
-    public function test_indexAll_with_callback_receives_progress(): void
+    public function test_index_all_with_callback_receives_progress(): void
     {
-        $models = new StringTypedCollection();
+        $models = new StringTypedCollection;
         $models->add(TestUser::class);
         $models->add(TestPost::class);
 
@@ -214,9 +218,9 @@ final class IndexServiceTest extends IntegrationTestCase
         $this->assertTrue(in_array(true, $calledIsNew));
     }
 
-    public function test_indexAll_throws_exception_for_nonexistent_model(): void
+    public function test_index_all_throws_exception_for_nonexistent_model(): void
     {
-        $models = new StringTypedCollection();
+        $models = new StringTypedCollection;
         $models->add('NonExistentModel');
 
         $this->expectException(\InvalidArgumentException::class);
@@ -225,9 +229,9 @@ final class IndexServiceTest extends IntegrationTestCase
         $this->indexService->indexAll($models);
     }
 
-    public function test_indexAll_throws_exception_for_non_searchable_model(): void
+    public function test_index_all_throws_exception_for_non_searchable_model(): void
     {
-        $models = new StringTypedCollection();
+        $models = new StringTypedCollection;
         $models->add(\stdClass::class);
 
         $this->expectException(\InvalidArgumentException::class);
@@ -236,10 +240,11 @@ final class IndexServiceTest extends IntegrationTestCase
         $this->indexService->indexAll($models);
     }
 
-    public function test_indexAll_respects_shouldBeIndexed_method(): void
+    public function test_index_all_respects_should_be_indexed_method(): void
     {
         // Créer un utilisateur avec shouldBeIndexed = false
-        $user = new class extends TestUser {
+        $user = new class extends TestUser
+        {
             public function shouldBeIndexed(): bool
             {
                 return false;
@@ -249,7 +254,7 @@ final class IndexServiceTest extends IntegrationTestCase
         $user->email = 'hidden@example.com';
         $user->save();
 
-        $models = new StringTypedCollection();
+        $models = new StringTypedCollection;
         $models->add(get_class($user));
 
         $stats = $this->indexService->indexAll($models);
@@ -259,9 +264,9 @@ final class IndexServiceTest extends IntegrationTestCase
 
     // ==================== Tests: clearIndex() ====================
 
-    public function test_clearIndex_removes_all_index_entries(): void
+    public function test_clear_index_removes_all_index_entries(): void
     {
-        $models = new StringTypedCollection();
+        $models = new StringTypedCollection;
         $models->add(TestUser::class);
         $models->add(TestPost::class);
 
@@ -275,7 +280,7 @@ final class IndexServiceTest extends IntegrationTestCase
 
     // ==================== Tests: Performance et lots ====================
 
-    public function test_indexAll_processes_in_batches(): void
+    public function test_index_all_processes_in_batches(): void
     {
         // Créer 150 utilisateurs
         for ($i = 0; $i < 150; $i++) {
@@ -285,7 +290,7 @@ final class IndexServiceTest extends IntegrationTestCase
             ]);
         }
 
-        $models = new StringTypedCollection();
+        $models = new StringTypedCollection;
         $models->add(TestUser::class);
 
         $stats = $this->indexService->indexAll($models);

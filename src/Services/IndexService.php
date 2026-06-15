@@ -93,7 +93,7 @@ class IndexService implements IndexServiceInterface
             $implements = class_implements($modelClass);
             if (! in_array(Searchable::class, $implements, true)) {
                 throw new \InvalidArgumentException(
-                    "Model {$modelClass} must implement " . Searchable::class
+                    "Model {$modelClass} must implement ".Searchable::class
                 );
             }
 

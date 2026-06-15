@@ -15,7 +15,9 @@ use AndyDefer\LaravelSearch\Tests\IntegrationTestCase;
 final class FuzzySearchIndexDirectiveTest extends IntegrationTestCase
 {
     private DirectiveTestingService $service;
+
     private int $userCounter = 1;
+
     private int $postCounter = 1;
 
     protected function setUp(): void
@@ -55,12 +57,12 @@ final class FuzzySearchIndexDirectiveTest extends IntegrationTestCase
 
     private function getUniqueEmail(): string
     {
-        return 'user' . $this->userCounter++ . '@example.com';
+        return 'user'.$this->userCounter++.'@example.com';
     }
 
     private function getUniquePostTitle(): string
     {
-        return 'Post Title ' . $this->postCounter++;
+        return 'Post Title '.$this->postCounter++;
     }
 
     private function createTestUser(array $overrides = []): TestUser
@@ -151,7 +153,7 @@ final class FuzzySearchIndexDirectiveTest extends IntegrationTestCase
         );
 
         $this->assertSame(ExitCode::SUCCESS, $response->exit_code);
-        $this->assertStringContainsString('Indexing specified models: ' . TestUser::class, $response->output);
+        $this->assertStringContainsString('Indexing specified models: '.TestUser::class, $response->output);
 
         // Seul TestUser devrait être indexé (1 entrée)
         $indexCount = SearchIndex::count();

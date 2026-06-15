@@ -20,6 +20,7 @@ final class SearchResultCollection extends AbstractTypedCollection
         foreach ($this->items as $result) {
             $models[] = $result->model;
         }
+
         return $models;
     }
 }

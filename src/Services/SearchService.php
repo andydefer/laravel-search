@@ -6,9 +6,9 @@ namespace AndyDefer\LaravelSearch\Services;
 
 use AndyDefer\JsonlCache\Contracts\JsonlCacheInterface;
 use AndyDefer\LaravelSearch\Collections\SearchResultCollection;
+use AndyDefer\LaravelSearch\Contexts\SearchContext;
 use AndyDefer\LaravelSearch\Contracts\Configs\SearchConfigInterface;
 use AndyDefer\LaravelSearch\Contracts\Services\SearchEngineServiceInterface;
-use AndyDefer\LaravelSearch\Contexts\SearchContext;
 use AndyDefer\LaravelSearch\Records\SearchIndexFiltersRecord;
 use AndyDefer\LaravelSearch\Records\SearchQueryRecord;
 use AndyDefer\LaravelSearch\Records\SearchResultRecord;
@@ -35,7 +35,7 @@ final class SearchService
             $cached = $this->cache->get($cacheKey);
             if ($cached !== null) {
                 // CORRECTION: Si c'est déjà un tableau de résultats hydratés
-                if (is_array($cached) && !empty($cached)) {
+                if (is_array($cached) && ! empty($cached)) {
                     return $this->hydrateResultsFromArray($cached);
                 }
                 // Si c'est déjà un SearchResultCollection
@@ -57,7 +57,7 @@ final class SearchService
 
     private function performSearch(SearchQueryRecord $query): SearchResultCollection
     {
-        $filters = new SearchIndexFiltersRecord();
+        $filters = new SearchIndexFiltersRecord;
 
         if ($query->type !== null) {
             $filters = new SearchIndexFiltersRecord(searchable_type: $query->type);
@@ -73,7 +73,7 @@ final class SearchService
         $indexes = $this->repository->findBy($findBy);
 
         if ($indexes->isEmpty()) {
-            return new SearchResultCollection();
+            return new SearchResultCollection;
         }
 
         $data = [];
@@ -93,7 +93,7 @@ final class SearchService
 
     private function hydrateResults(SearchContext $context, $indexes): SearchResultCollection
     {
-        $collection = new SearchResultCollection();
+        $collection = new SearchResultCollection;
 
         foreach ($context->getResults() as $result) {
             $matchingIndex = null;
@@ -125,7 +125,7 @@ final class SearchService
      */
     private function hydrateResultsFromArray(array $cachedResults): SearchResultCollection
     {
-        $collection = new SearchResultCollection();
+        $collection = new SearchResultCollection;
 
         foreach ($cachedResults as $result) {
             $collection->add(new SearchResultRecord(
@@ -144,7 +144,7 @@ final class SearchService
         $cacheConfig = $this->config->getCache();
         $typeKey = $query->type ?? 'all';
 
-        return $cacheConfig->prefix . md5($query->query . '_' . $query->limit . '_' . $typeKey);
+        return $cacheConfig->prefix.md5($query->query.'_'.$query->limit.'_'.$typeKey);
     }
 
     public function clearCache(): void

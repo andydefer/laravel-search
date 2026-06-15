@@ -6,17 +6,22 @@ namespace AndyDefer\LaravelSearch\Tests\Integration\Services;
 
 use AndyDefer\LaravelSearch\Models\SearchIndex;
 use AndyDefer\LaravelSearch\Records\SearchQueryRecord;
+use AndyDefer\LaravelSearch\Services\IndexService;
 use AndyDefer\LaravelSearch\Services\SearchService;
-use AndyDefer\LaravelSearch\Tests\Fixtures\Models\TestUser;
 use AndyDefer\LaravelSearch\Tests\Fixtures\Models\TestPost;
+use AndyDefer\LaravelSearch\Tests\Fixtures\Models\TestUser;
 use AndyDefer\LaravelSearch\Tests\IntegrationTestCase;
 
 final class SearchServiceTest extends IntegrationTestCase
 {
     private SearchService $searchService;
+
     private TestUser $user1;
+
     private TestUser $user2;
+
     private TestPost $post1;
+
     private TestPost $post2;
 
     protected function setUp(): void
@@ -55,7 +60,7 @@ final class SearchServiceTest extends IntegrationTestCase
         ]);
 
         // Indexer les données
-        $indexService = $this->app->make(\AndyDefer\LaravelSearch\Services\IndexService::class);
+        $indexService = $this->app->make(IndexService::class);
         $indexService->index($this->user1);
         $indexService->index($this->user2);
         $indexService->index($this->post1);
@@ -119,6 +124,7 @@ final class SearchServiceTest extends IntegrationTestCase
         );
 
         $results = $this->searchService->search($query);
+        dump($results);
 
         $this->assertNotEmpty($results);
     }
@@ -143,7 +149,7 @@ final class SearchServiceTest extends IntegrationTestCase
             'status' => 'active',
         ]);
 
-        $indexService = $this->app->make(\AndyDefer\LaravelSearch\Services\IndexService::class);
+        $indexService = $this->app->make(IndexService::class);
         $indexService->index($user);
 
         $query = new SearchQueryRecord(
@@ -267,7 +273,7 @@ final class SearchServiceTest extends IntegrationTestCase
         $this->assertEquals($results1->count(), $results2->count());
     }
 
-    public function test_clearCache_works(): void
+    public function test_clear_cache_works(): void
     {
         $query = new SearchQueryRecord(
             query: 'John',
@@ -295,7 +301,7 @@ final class SearchServiceTest extends IntegrationTestCase
             'body' => 'This article covers advanced Laravel search techniques',
         ]);
 
-        $indexService = $this->app->make(\AndyDefer\LaravelSearch\Services\IndexService::class);
+        $indexService = $this->app->make(IndexService::class);
         $indexService->index($relevantPost);
 
         $query = new SearchQueryRecord(

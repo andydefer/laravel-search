@@ -17,13 +17,14 @@ use AndyDefer\Repository\ValueObjects\SelectColumns;
 final class SearchIndexRepositoryTest extends IntegrationTestCase
 {
     private SearchIndexRepository $repository;
+
     private TestUser $user;
 
     protected function setUp(): void
     {
         parent::setUp();
 
-        $this->repository = new SearchIndexRepository();
+        $this->repository = new SearchIndexRepository;
 
         $this->user = TestUser::create([
             'name' => 'John Doe',
@@ -44,7 +45,7 @@ final class SearchIndexRepositoryTest extends IntegrationTestCase
             'searchable_id' => (string) $this->user->id,
             'content' => 'John Doe john@example.com',
             'normalized_content' => 'john doe john@example.com',
-            'fields' => new SearchableFieldCollection(),
+            'fields' => new SearchableFieldCollection,
         ];
 
         $data = array_merge($defaults, $overrides);
@@ -60,7 +61,7 @@ final class SearchIndexRepositoryTest extends IntegrationTestCase
 
     // ==================== Tests: updateOrCreate ====================
 
-    public function test_updateOrCreate_creates_new_record(): void
+    public function test_update_or_create_creates_new_record(): void
     {
         $record = $this->createSearchIndexRecord();
 
@@ -73,7 +74,7 @@ final class SearchIndexRepositoryTest extends IntegrationTestCase
         $this->assertSame(1, SearchIndex::count());
     }
 
-    public function test_updateOrCreate_updates_existing_record(): void
+    public function test_update_or_create_updates_existing_record(): void
     {
         $record = $this->createSearchIndexRecord();
         $this->repository->updateOrCreate($record);
@@ -90,9 +91,9 @@ final class SearchIndexRepositoryTest extends IntegrationTestCase
         $this->assertSame('Jane Smith jane@example.com', $model->content);
     }
 
-    public function test_updateOrCreate_preserves_existing_fields_when_updating(): void
+    public function test_update_or_create_preserves_existing_fields_when_updating(): void
     {
-        $fields = new SearchableFieldCollection();
+        $fields = new SearchableFieldCollection;
         $record = $this->createSearchIndexRecord(['fields' => $fields]);
         $this->repository->updateOrCreate($record);
 
@@ -105,7 +106,7 @@ final class SearchIndexRepositoryTest extends IntegrationTestCase
 
     // ==================== Tests: findBy avec filtres ====================
 
-    public function test_findBy_with_searchable_type_filter(): void
+    public function test_find_by_with_searchable_type_filter(): void
     {
         $record = $this->createSearchIndexRecord();
         $this->repository->updateOrCreate($record);
@@ -118,7 +119,7 @@ final class SearchIndexRepositoryTest extends IntegrationTestCase
         $this->assertCount(1, $results);
     }
 
-    public function test_findBy_with_searchable_id_filter(): void
+    public function test_find_by_with_searchable_id_filter(): void
     {
         $record = $this->createSearchIndexRecord();
         $this->repository->updateOrCreate($record);
@@ -131,7 +132,7 @@ final class SearchIndexRepositoryTest extends IntegrationTestCase
         $this->assertCount(1, $results);
     }
 
-    public function test_findBy_with_content_filter(): void
+    public function test_find_by_with_content_filter(): void
     {
         $record = $this->createSearchIndexRecord();
         $this->repository->updateOrCreate($record);
@@ -145,7 +146,7 @@ final class SearchIndexRepositoryTest extends IntegrationTestCase
         $this->assertStringContainsString('John', $results->first()->content);
     }
 
-    public function test_findBy_with_normalized_content_filter(): void
+    public function test_find_by_with_normalized_content_filter(): void
     {
         $record = $this->createSearchIndexRecord();
         $this->repository->updateOrCreate($record);
@@ -158,7 +159,7 @@ final class SearchIndexRepositoryTest extends IntegrationTestCase
         $this->assertCount(1, $results);
     }
 
-    public function test_findBy_with_search_filter_on_content(): void
+    public function test_find_by_with_search_filter_on_content(): void
     {
         $record = $this->createSearchIndexRecord();
         $this->repository->updateOrCreate($record);
@@ -171,7 +172,7 @@ final class SearchIndexRepositoryTest extends IntegrationTestCase
         $this->assertCount(1, $results);
     }
 
-    public function test_findBy_with_search_filter_on_normalized_content(): void
+    public function test_find_by_with_search_filter_on_normalized_content(): void
     {
         $record = $this->createSearchIndexRecord();
         $this->repository->updateOrCreate($record);
@@ -184,7 +185,7 @@ final class SearchIndexRepositoryTest extends IntegrationTestCase
         $this->assertCount(1, $results);
     }
 
-    public function test_findBy_with_multiple_filters(): void
+    public function test_find_by_with_multiple_filters(): void
     {
         $record = $this->createSearchIndexRecord();
         $this->repository->updateOrCreate($record);
@@ -200,7 +201,7 @@ final class SearchIndexRepositoryTest extends IntegrationTestCase
         $this->assertCount(1, $results);
     }
 
-    public function test_findBy_returns_empty_collection_when_no_match(): void
+    public function test_find_by_returns_empty_collection_when_no_match(): void
     {
         $record = $this->createSearchIndexRecord();
         $this->repository->updateOrCreate($record);
@@ -215,7 +216,7 @@ final class SearchIndexRepositoryTest extends IntegrationTestCase
 
     // ==================== Tests: findBy avec colonnes ====================
 
-    public function test_findBy_with_select_columns(): void
+    public function test_find_by_with_select_columns(): void
     {
         $record = $this->createSearchIndexRecord();
         $this->repository->updateOrCreate($record);
@@ -236,7 +237,7 @@ final class SearchIndexRepositoryTest extends IntegrationTestCase
 
     // ==================== Tests: findBy avec limite ====================
 
-    public function test_findBy_with_limit(): void
+    public function test_find_by_with_limit(): void
     {
         $user2 = TestUser::create(['name' => 'Jane Smith', 'email' => 'jane@example.com']);
 
@@ -250,7 +251,7 @@ final class SearchIndexRepositoryTest extends IntegrationTestCase
         $this->repository->updateOrCreate($record1);
         $this->repository->updateOrCreate($record2);
 
-        $filters = new SearchIndexFiltersRecord();
+        $filters = new SearchIndexFiltersRecord;
         $findBy = new FindByRecord(
             filters: $filters,
             limit: 1,
@@ -263,7 +264,7 @@ final class SearchIndexRepositoryTest extends IntegrationTestCase
 
     // ==================== Tests: deleteBulk ====================
 
-    public function test_deleteBulk_removes_matching_records(): void
+    public function test_delete_bulk_removes_matching_records(): void
     {
         $record = $this->createSearchIndexRecord();
         $this->repository->updateOrCreate($record);
@@ -276,19 +277,19 @@ final class SearchIndexRepositoryTest extends IntegrationTestCase
         $this->assertSame(0, SearchIndex::count());
     }
 
-    public function test_deleteBulk_without_filters_removes_nothing(): void
+    public function test_delete_bulk_without_filters_removes_nothing(): void
     {
         $record = $this->createSearchIndexRecord();
         $this->repository->updateOrCreate($record);
 
-        $filters = new SearchIndexFiltersRecord();
+        $filters = new SearchIndexFiltersRecord;
         $deletedCount = $this->repository->deleteBulk($filters);
 
         $this->assertSame(0, $deletedCount);
         $this->assertSame(1, SearchIndex::count());
     }
 
-    public function test_deleteBulk_with_non_matching_filters_removes_nothing(): void
+    public function test_delete_bulk_with_non_matching_filters_removes_nothing(): void
     {
         $record = $this->createSearchIndexRecord();
         $this->repository->updateOrCreate($record);
@@ -302,7 +303,7 @@ final class SearchIndexRepositoryTest extends IntegrationTestCase
 
     // ==================== Tests: forceDeleteBulk ====================
 
-    public function test_forceDeleteBulk_removes_matching_records(): void
+    public function test_force_delete_bulk_removes_matching_records(): void
     {
         $record = $this->createSearchIndexRecord();
         $this->repository->updateOrCreate($record);
@@ -315,12 +316,12 @@ final class SearchIndexRepositoryTest extends IntegrationTestCase
         $this->assertSame(0, SearchIndex::count());
     }
 
-    public function test_forceDeleteBulk_without_filters_removes_nothing(): void
+    public function test_force_delete_bulk_without_filters_removes_nothing(): void
     {
         $record = $this->createSearchIndexRecord();
         $this->repository->updateOrCreate($record);
 
-        $filters = new SearchIndexFiltersRecord();
+        $filters = new SearchIndexFiltersRecord;
         $deletedCount = $this->repository->forceDeleteBulk($filters);
 
         $this->assertSame(0, $deletedCount);
@@ -329,7 +330,7 @@ final class SearchIndexRepositoryTest extends IntegrationTestCase
 
     // ==================== Tests: deleteAll ====================
 
-    public function test_deleteAll_removes_all_records(): void
+    public function test_delete_all_removes_all_records(): void
     {
         $user2 = TestUser::create(['name' => 'Jane Smith', 'email' => 'jane@example.com']);
 
@@ -351,7 +352,7 @@ final class SearchIndexRepositoryTest extends IntegrationTestCase
         $this->assertSame(0, SearchIndex::count());
     }
 
-    public function test_deleteAll_returns_zero_when_table_is_empty(): void
+    public function test_delete_all_returns_zero_when_table_is_empty(): void
     {
         $this->assertSame(0, SearchIndex::count());
 
@@ -363,7 +364,7 @@ final class SearchIndexRepositoryTest extends IntegrationTestCase
 
     // ==================== Tests: forceDeleteAll ====================
 
-    public function test_forceDeleteAll_removes_all_records(): void
+    public function test_force_delete_all_removes_all_records(): void
     {
         $user2 = TestUser::create(['name' => 'Jane Smith', 'email' => 'jane@example.com']);
 
@@ -385,7 +386,7 @@ final class SearchIndexRepositoryTest extends IntegrationTestCase
         $this->assertSame(0, SearchIndex::count());
     }
 
-    public function test_forceDeleteAll_returns_zero_when_table_is_empty(): void
+    public function test_force_delete_all_returns_zero_when_table_is_empty(): void
     {
         $this->assertSame(0, SearchIndex::count());
 
@@ -418,7 +419,7 @@ final class SearchIndexRepositoryTest extends IntegrationTestCase
 
     // ==================== Tests: countAll ====================
 
-    public function test_countAll_returns_total_number_of_records(): void
+    public function test_count_all_returns_total_number_of_records(): void
     {
         $user2 = TestUser::create(['name' => 'Jane Smith', 'email' => 'jane@example.com']);
 
@@ -435,14 +436,14 @@ final class SearchIndexRepositoryTest extends IntegrationTestCase
         $this->assertSame(2, $this->repository->countAll());
     }
 
-    public function test_countAll_returns_zero_when_table_is_empty(): void
+    public function test_count_all_returns_zero_when_table_is_empty(): void
     {
         $this->assertSame(0, $this->repository->countAll());
     }
 
     // ==================== Tests: existsForModel ====================
 
-    public function test_existsForModel_returns_true_when_record_exists(): void
+    public function test_exists_for_model_returns_true_when_record_exists(): void
     {
         $record = $this->createSearchIndexRecord();
         $this->repository->updateOrCreate($record);
@@ -452,7 +453,7 @@ final class SearchIndexRepositoryTest extends IntegrationTestCase
         $this->assertTrue($exists);
     }
 
-    public function test_existsForModel_returns_false_when_record_does_not_exist(): void
+    public function test_exists_for_model_returns_false_when_record_does_not_exist(): void
     {
         $exists = $this->repository->existsForModel(TestUser::class, '99999');
 
@@ -461,7 +462,7 @@ final class SearchIndexRepositoryTest extends IntegrationTestCase
 
     // ==================== Tests: findByModel ====================
 
-    public function test_findByModel_returns_record_when_exists(): void
+    public function test_find_by_model_returns_record_when_exists(): void
     {
         $record = $this->createSearchIndexRecord();
         $expected = $this->repository->updateOrCreate($record);
@@ -473,7 +474,7 @@ final class SearchIndexRepositoryTest extends IntegrationTestCase
         $this->assertSame($expected->content, $found->content);
     }
 
-    public function test_findByModel_returns_null_when_record_does_not_exist(): void
+    public function test_find_by_model_returns_null_when_record_does_not_exist(): void
     {
         $found = $this->repository->findByModel(TestUser::class, '99999');
 

@@ -7,10 +7,10 @@ namespace AndyDefer\LaravelSearch;
 use AndyDefer\DomainStructures\Services\HydrationService;
 use AndyDefer\JsonlCache\Contracts\JsonlCacheInterface;
 use AndyDefer\LaravelSearch\Configs\SearchConfig;
-use AndyDefer\LaravelSearch\Contracts\Configs\SearchConfigInterface;
-use AndyDefer\LaravelSearch\Contracts\Services\SearchEngineServiceInterface;
 use AndyDefer\LaravelSearch\Contexts\NormalizerContext;
 use AndyDefer\LaravelSearch\Contexts\SearchEngineConfigContext;
+use AndyDefer\LaravelSearch\Contracts\Configs\SearchConfigInterface;
+use AndyDefer\LaravelSearch\Contracts\Services\SearchEngineServiceInterface;
 use AndyDefer\LaravelSearch\Repositories\SearchIndexRepository;
 use AndyDefer\LaravelSearch\Services\IndexService;
 use AndyDefer\LaravelSearch\Services\NormalizerService;
@@ -23,7 +23,7 @@ class FuzzySearchServiceProvider extends ServiceProvider
 {
     public function register(): void
     {
-        $this->mergeConfigFrom(__DIR__ . '/../config/fuzzy-search.php', 'fuzzy-search');
+        $this->mergeConfigFrom(__DIR__.'/../config/fuzzy-search.php', 'fuzzy-search');
 
         // Configuration
         $this->app->singleton(SearchConfigInterface::class, function ($app) {
@@ -34,11 +34,12 @@ class FuzzySearchServiceProvider extends ServiceProvider
 
         // Contextes (état mutable)
         $this->app->singleton(NormalizerContext::class, function () {
-            return new NormalizerContext();
+            return new NormalizerContext;
         });
 
         $this->app->singleton(SearchEngineConfigContext::class, function ($app) {
             $config = $app->make(SearchConfigInterface::class);
+
             return new SearchEngineConfigContext(
                 engineConfig: $config->getEngine(),
             );
@@ -46,7 +47,7 @@ class FuzzySearchServiceProvider extends ServiceProvider
 
         // Services stateless
         $this->app->singleton(HydrationService::class, function () {
-            return new HydrationService();
+            return new HydrationService;
         });
 
         $this->app->singleton(NormalizerService::class, function ($app) {
@@ -56,7 +57,7 @@ class FuzzySearchServiceProvider extends ServiceProvider
         });
 
         $this->app->singleton(SearchIndexRepository::class, function () {
-            return new SearchIndexRepository();
+            return new SearchIndexRepository;
         });
 
         $this->app->singleton(SearchEngineServiceInterface::class, function ($app) {
@@ -90,11 +91,11 @@ class FuzzySearchServiceProvider extends ServiceProvider
     {
         if ($this->app->runningInConsole()) {
             $this->publishes([
-                __DIR__ . '/../config/fuzzy-search.php' => config_path('fuzzy-search.php'),
+                __DIR__.'/../config/fuzzy-search.php' => config_path('fuzzy-search.php'),
             ], 'fuzzy-search-config');
 
             $this->publishes([
-                __DIR__ . '/../database/migrations/' => database_path('migrations'),
+                __DIR__.'/../database/migrations/' => database_path('migrations'),
             ], 'fuzzy-search-migrations');
         }
     }
