@@ -25,7 +25,7 @@
         "andydefer/php-vo": "^0.8.1",
         "andydefer/laravel-repository": "^2.8.2",
         "andydefer/laravel-task": "^3.7.3",
-        "andydefer/laravel-directive": "^3.25.0",
+        "andydefer/laravel-directive": "^3.26.0",
         "andydefer/jsonl-cache": "^0.2.0"
     },
     "require-dev": {
