@@ -24,9 +24,9 @@
         "laravel/framework": "^12.0|^13.0|^14.0|^15.0",
         "andydefer/php-vo": "^0.9.3",
         "andydefer/laravel-repository": "^2.8.6",
-        "andydefer/laravel-task": "^3.8.7",
-        "andydefer/laravel-directive": "^3.28.0",
-        "andydefer/jsonl-cache": "^0.3.4"
+        "andydefer/laravel-task": "^3.8.8",
+        "andydefer/laravel-directive": "^3.30.0",
+        "andydefer/jsonl-cache": "^0.3.5"
     },
     "require-dev": {
         "barryvdh/laravel-ide-helper": "^3.6",
