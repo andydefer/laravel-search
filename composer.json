@@ -1,0 +1,42 @@
+{
+    "name": "andydefer/laravel-search",
+    "description": "Fuzzy search package for PHP Laravel",
+    "license": "MIT",
+    "autoload": {
+        "psr-4": {
+            "AndyDefer\\LaravelSearch\\": "src/"
+        }
+    },
+    "autoload-dev": {
+        "psr-4": {
+            "AndyDefer\\LaravelSearch\\Tests\\": "tests/"
+        }
+    },
+    "bin": [
+        "bin/laravel-search"
+    ],
+    "authors": [
+        {
+            "name": "Andy Kani",
+            "email": "andykanidimbu@gmail.com"
+        }
+    ],
+    "require": {
+        "php": "^8.1",
+        "laravel/framework": "^12.0|^13.0|^14.0|^15.0",
+        "andydefer/laravel-repository": "^2.9.1"
+    },
+    "require-dev": {
+        "orchestra/testbench": "^9.0|^10.0",
+        "phpunit/phpunit": "^10.5|^11.0|^12.0",
+        "mockery/mockery": "^1.6",
+        "laravel/pint": "^1.29"
+    },
+    "scripts": {
+        "test": "phpunit",
+        "test-unit": "phpunit --testsuite=unit",
+        "test-integration": "phpunit --testsuite=integration"
+    },
+    "minimum-stability": "stable",
+    "prefer-stable": true
+}
