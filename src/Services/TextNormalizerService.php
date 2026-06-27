@@ -205,11 +205,12 @@ final class TextNormalizerService
 
     /**
      * Supprime les caractères spéciaux (garde lettres, chiffres, espaces)
+     * Conserve les apostrophes et les tirets pour les mots composés
      */
     public function removeSpecialChars(string $text): string
     {
-        // Supprimer les caractères qui ne sont pas des lettres, chiffres ou espaces
-        $text = preg_replace('/[^\p{L}\p{N}\s]/u', ' ', $text);
+        // Conserver les lettres, chiffres, espaces, apostrophes et tirets
+        $text = preg_replace('/[^\p{L}\p{N}\s\'-]/u', ' ', $text);
 
         return $text ?? '';
     }
@@ -244,17 +245,12 @@ final class TextNormalizerService
 
     /**
      * Vérifie si le texte contient des caractères accentués
+     * Version optimisée (ne parcourt pas 200+ patterns)
      */
     public function hasAccents(string $text): bool
     {
-        $patterns = array_keys(self::DIACRITICS);
-        foreach ($patterns as $pattern) {
-            if (mb_strpos($text, $pattern) !== false) {
-                return true;
-            }
-        }
-
-        return false;
+        // Intervalle des caractères accentués latins
+        return preg_match('/[À-ÿ]/u', $text) === 1;
     }
 
     /**
@@ -263,5 +259,37 @@ final class TextNormalizerService
     public function removeNonAscii(string $text): string
     {
         return preg_replace('/[^\x00-\x7F]/', ' ', $text) ?? '';
+    }
+
+    /**
+     * Normalise les apostrophes courbes en apostrophes simples
+     */
+    public function normalizeApostrophes(string $text): string
+    {
+        $apostrophes = [
+            '’' => "'",
+            '‘' => "'",
+            '‛' => "'",
+            '′' => "'",
+            '`' => "'",
+        ];
+
+        return strtr($text, $apostrophes);
+    }
+
+    /**
+     * Nettoie un texte en supprimant les caractères non imprimables
+     */
+    public function clean(string $text): string
+    {
+        return preg_replace('/[\x00-\x1F\x7F]/u', ' ', $text) ?? '';
+    }
+
+    /**
+     * Vérifie si le texte contient des caractères non-latins
+     */
+    public function hasNonLatinCharacters(string $text): bool
+    {
+        return preg_match('/[^\x00-\x7F]/u', $text) === 1;
     }
 }

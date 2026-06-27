@@ -164,6 +164,80 @@ final class SearchIndexRepository extends AbstractRepository
         return $this->findBy($findBy);
     }
 
+    /**
+     * Recherche les indexes correspondant à une liste de n-grams
+     * Compatible SQLite, MySQL, PostgreSQL
+     */
+    public function findByNgramsList(array|NgramsVO $ngrams): Collection
+    {
+        if ($ngrams instanceof NgramsVO) {
+            $ngrams = $ngrams->toArray();
+        }
+
+        if (empty($ngrams)) {
+            return new Collection;
+        }
+
+        $ngrams = array_unique(array_filter($ngrams, function ($ngram) {
+            return is_string($ngram) && strlen(trim($ngram)) >= 2;
+        }));
+
+        if (empty($ngrams)) {
+            return new Collection;
+        }
+
+        $query = $this->model->newQuery();
+
+        $query->where(function ($q) use ($ngrams) {
+            foreach ($ngrams as $ngram) {
+                $q->orWhereJsonContains('ngrams', $ngram);
+            }
+        });
+
+        $query->limit(1000);
+        $query->orderBy('created_at', 'desc');
+
+        return $query->get();
+    }
+
+    /**
+     * Recherche par liste de n-grams avec tri et limite
+     */
+    public function findByNgramsListWithSort(
+        array|NgramsVO $ngrams,
+        string $sort = 'created_at:desc',
+        int $limit = 50
+    ): Collection {
+        if ($ngrams instanceof NgramsVO) {
+            $ngrams = $ngrams->toArray();
+        }
+
+        if (empty($ngrams)) {
+            return new Collection;
+        }
+
+        $ngrams = array_unique(array_filter($ngrams, function ($ngram) {
+            return is_string($ngram) && strlen(trim($ngram)) >= 2;
+        }));
+
+        if (empty($ngrams)) {
+            return new Collection;
+        }
+
+        $query = $this->model->newQuery();
+
+        $query->where(function ($q) use ($ngrams) {
+            foreach ($ngrams as $ngram) {
+                $q->orWhereJsonContains('ngrams', $ngram);
+            }
+        });
+
+        $this->applySort($query, $sort);
+        $query->limit($limit);
+
+        return $query->get();
+    }
+
     public function findByWordForNgrams(StringVO $word): Collection
     {
         $ngrams_vo = new NgramsVO($word->getValue());
@@ -298,29 +372,32 @@ final class SearchIndexRepository extends AbstractRepository
     // ========== RECHERCHE AVEC SCORE ==========
 
     /**
-     * Recherche avec calcul de score
-     *
-     * @return array<SearchResultRecord>
+     * Recherche avec calcul de score - Version optimisée
      */
     public function searchWithScore(string $query, int $limit = 10): array
     {
-        // 1. Traiter la requête
         $query_words = $this->query_processor->process($query);
 
         if (empty($query_words)) {
             return [];
         }
 
-        // 2. Récupérer tous les index
-        $all_indexes = $this->findAllWithSort('created_at:asc', 1000);
+        $query_ngrams = [];
+        foreach ($query_words as $word) {
+            $query_ngrams = array_merge($query_ngrams, $word->ngrams->toArray());
+        }
+        $query_ngrams = array_unique($query_ngrams);
+
+        $candidates = $this->findByNgramsList($query_ngrams);
+
+        if ($candidates->isEmpty()) {
+            return [];
+        }
 
         $results = [];
 
-        foreach ($all_indexes as $index) {
-            // 3. Récupérer les mots de l'item
+        foreach ($candidates as $index) {
             $item_words = $index->getItemWords()->toArray();
-
-            // 4. Calculer le score
             $score = $this->query_processor->compute_score($query_words, $item_words);
 
             if ($score !== null && $score->percentage > 0) {
@@ -333,23 +410,32 @@ final class SearchIndexRepository extends AbstractRepository
             }
         }
 
-        // 5. Trier par pertinence
         return $this->query_processor->sort_results($results);
     }
 
-    /**
-     * Recherche avec score et limite
-     */
     public function searchWithScoreAndLimit(string $query, int $limit = 10, float $min_percentage = 20): array
     {
         $results = $this->searchWithScore($query);
 
-        // Filtrer par pourcentage minimum
         $filtered = array_filter($results, function (SearchResultRecord $result) use ($min_percentage) {
             return $result->percentage >= $min_percentage;
         });
 
-        // Limiter le nombre de résultats
         return array_slice($filtered, 0, $limit);
+    }
+
+    // ========== MÉTHODES UTILITAIRES ==========
+
+    private function applySort(Builder $query, string $sort): void
+    {
+        if (empty($sort)) {
+            return;
+        }
+
+        $sortParts = explode('|', $sort);
+        foreach ($sortParts as $part) {
+            [$column, $direction] = explode(':', $part) + [1 => 'asc'];
+            $query->orderBy($column, $direction);
+        }
     }
 }

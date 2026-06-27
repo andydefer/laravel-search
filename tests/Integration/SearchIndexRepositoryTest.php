@@ -134,7 +134,6 @@ final class SearchIndexRepositoryTest extends IntegrationTestCase
 
         $results = $this->repository->searchWithScoreAndLimit('John', 10, 50);
 
-        // Seulement les résultats avec > 50% de pertinence
         foreach ($results as $result) {
             $this->assertGreaterThanOrEqual(50, $result->percentage);
         }
@@ -148,7 +147,6 @@ final class SearchIndexRepositoryTest extends IntegrationTestCase
 
         $results = $this->repository->searchWithScore('John', 10);
 
-        // Le premier résultat doit être le plus pertinent
         if (count($results) > 1) {
             $this->assertGreaterThanOrEqual($results[1]->percentage, $results[0]->percentage);
         }
@@ -176,7 +174,6 @@ final class SearchIndexRepositoryTest extends IntegrationTestCase
         $results = $this->repository->searchWithScore('John Doe', 10);
 
         $this->assertCount(2, $results);
-        // John Doe doit être le premier (100%)
         $this->assertSame('John Doe', $results[0]->index->original_text->getValue());
         $this->assertEquals(100.0, $results[0]->percentage);
     }
@@ -189,7 +186,6 @@ final class SearchIndexRepositoryTest extends IntegrationTestCase
         $results = $this->repository->searchWithScore('Jean', 10);
 
         $this->assertCount(2, $results);
-        // Jean doit avoir un score plus élevé que Jean-Pierre
         $this->assertSame('Jean', $results[0]->index->original_text->getValue());
         $this->assertGreaterThan($results[1]->percentage, $results[0]->percentage);
     }
@@ -417,6 +413,78 @@ final class SearchIndexRepositoryTest extends IntegrationTestCase
         $this->assertCount(3, $results);
         $this->assertSame('Alice Brown', $results->first()->original_text);
         $this->assertSame('John Doe', $results->last()->original_text);
+    }
+
+    // ============================================================
+    // TESTS DE RECHERCHE PAR N-GRAMS LIST
+    // ============================================================
+
+    public function test_find_by_ngrams_list(): void
+    {
+        $this->createIndex('Hello World', 'title');
+        $this->createIndex('Bonjour Monde', 'title');
+
+        $ngrams = ['hel', 'bon'];
+        $results = $this->repository->findByNgramsList($ngrams);
+
+        $this->assertCount(2, $results);
+    }
+
+    public function test_find_by_ngrams_list_with_ngrams_vo(): void
+    {
+        $this->createIndex('Hello World', 'title');
+
+        $ngramsVO = new NgramsVO('Hello');
+        $results = $this->repository->findByNgramsList($ngramsVO);
+
+        $this->assertCount(1, $results);
+        $this->assertSame('Hello World', $results->first()->original_text);
+    }
+
+    public function test_find_by_ngrams_list_empty(): void
+    {
+        $results = $this->repository->findByNgramsList([]);
+        $this->assertCount(0, $results);
+    }
+
+    public function test_find_by_ngrams_list_no_results(): void
+    {
+        $this->createIndex('Hello World', 'title');
+
+        $ngrams = ['xyz'];
+        $results = $this->repository->findByNgramsList($ngrams);
+
+        $this->assertCount(0, $results);
+    }
+
+    public function test_find_by_ngrams_list_with_sort(): void
+    {
+        $this->createIndex('Apple', 'title');
+        $this->createIndex('Banana', 'title');
+        $this->createIndex('Cherry', 'title');
+
+        $ngrams = ['app', 'ana', 'che'];
+        $results = $this->repository->findByNgramsListWithSort(
+            $ngrams,
+            'original_text:asc',
+            10
+        );
+
+        $this->assertCount(3, $results);
+        $this->assertSame('Apple', $results->first()->original_text);
+        $this->assertSame('Cherry', $results->last()->original_text);
+    }
+
+    public function test_find_by_ngrams_list_with_limit(): void
+    {
+        for ($i = 0; $i < 10; $i++) {
+            $this->createIndex("Terminal {$i}", 'title');
+        }
+
+        $ngrams = ['ter'];
+        $results = $this->repository->findByNgramsListWithSort($ngrams, 'created_at:desc', 5);
+
+        $this->assertCount(5, $results);
     }
 
     // ============================================================

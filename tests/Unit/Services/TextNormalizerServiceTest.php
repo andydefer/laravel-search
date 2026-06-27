@@ -263,7 +263,8 @@ final class TextNormalizerServiceTest extends TestCase
     {
         $text = 'Le site de la ville de Mont-Saint-Michel est magnifique !';
         $result = $this->normalizer->normalize($text);
-        $this->assertStringContainsString('le site de la ville de mont saint michel est magnifique', $result);
+        // Les tirets sont conservés dans les mots composés
+        $this->assertStringContainsString('le site de la ville de mont-saint-michel est magnifique', $result);
     }
 
     public function test_normalize_scientific_text(): void
@@ -329,5 +330,78 @@ final class TextNormalizerServiceTest extends TestCase
         $this->assertContains('hola', $result);
         $this->assertContains('privet', $result);
         $this->assertNotContains('konnichiwa', $result);
+    }
+
+    // ============================================================
+    // NOUVEAUX TESTS POUR LES MÉTHODES AJOUTÉES
+    // ============================================================
+
+    public function test_normalize_apostrophes(): void
+    {
+        // normalizeApostrophes ne supprime pas les accents
+        // On doit utiliser normalize() pour avoir le résultat final
+        $result = $this->normalizer->normalize("L'éléphant c'est un animal");
+        $this->assertSame("l'elephant c'est un animal", $result);
+    }
+
+    public function test_normalize_curly_apostrophes(): void
+    {
+        // Les apostrophes courbes sont normalisées, puis les accents sont supprimés
+        $result = $this->normalizer->normalize('L’éléphant c‘est un animal');
+        $this->assertSame("l'elephant c'est un animal", $result);
+    }
+
+    public function test_clean_non_printable_characters(): void
+    {
+        $text = "Hello\x00World\x1FTest";
+        $result = $this->normalizer->clean($text);
+        $this->assertSame('Hello World Test', $result);
+    }
+
+    public function test_has_non_latin_characters(): void
+    {
+        $this->assertTrue($this->normalizer->hasNonLatinCharacters('café'));
+        $this->assertTrue($this->normalizer->hasNonLatinCharacters('Привет'));
+        $this->assertFalse($this->normalizer->hasNonLatinCharacters('hello'));
+        $this->assertFalse($this->normalizer->hasNonLatinCharacters('123'));
+    }
+
+    public function test_normalize_with_apostrophe_preservation(): void
+    {
+        $result = $this->normalizer->normalize("L'éléphant est dans l'arbre");
+        // L'apostrophe est conservée, les accents sont supprimés
+        $this->assertStringContainsString("l'elephant est dans l'arbre", $result);
+    }
+
+    public function test_normalize_with_hyphen_preservation(): void
+    {
+        $result = $this->normalizer->normalize('Jean-Pierre a un chien-loup');
+        // Les tirets sont conservés
+        $this->assertStringContainsString('jean-pierre a un chien-loup', $result);
+    }
+
+    public function test_extract_words_with_apostrophe(): void
+    {
+        $result = $this->normalizer->extractWords("L'éléphant c'est un animal");
+        // Les mots avec apostrophe sont conservés comme un seul mot
+        $this->assertContains("l'elephant", $result);
+        $this->assertContains("c'est", $result);
+    }
+
+    public function test_extract_words_with_hyphen(): void
+    {
+        $result = $this->normalizer->extractWords('Jean-Pierre a un chien-loup');
+        // Les mots avec tiret sont conservés comme un seul mot
+        $this->assertContains('jean-pierre', $result);
+        $this->assertContains('chien-loup', $result);
+    }
+
+    public function test_normalize_apostrophes_method_only(): void
+    {
+        // Test de la méthode normalizeApostrophes seule (sans normalize)
+        $text = 'L’éléphant c‘est un animal';
+        $result = $this->normalizer->normalizeApostrophes($text);
+        // Les apostrophes sont normalisées mais les accents restent
+        $this->assertSame("L'éléphant c'est un animal", $result);
     }
 }
