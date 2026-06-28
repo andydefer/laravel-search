@@ -8,29 +8,30 @@ use AndyDefer\LaravelSearch\Collections\MatchResultCollection;
 use AndyDefer\LaravelSearch\Collections\SearchResultCollection;
 use AndyDefer\LaravelSearch\Collections\SourceColumnCollection;
 use AndyDefer\LaravelSearch\Configs\SearchConfig;
+use AndyDefer\LaravelSearch\Contracts\Repositories\SearchIndexRepositoryInterface;
 use AndyDefer\LaravelSearch\Contracts\Searchable;
-use AndyDefer\LaravelSearch\Contracts\Services\CandidatesFinderServiceInterface;
-use AndyDefer\LaravelSearch\Contracts\Services\SearchServiceInterface;
+use AndyDefer\LaravelSearch\Contracts\Services\CandidatesFinderInterface;
+use AndyDefer\LaravelSearch\Contracts\Services\QueryProcessorInterface;
+use AndyDefer\LaravelSearch\Contracts\Services\SearchInterface;
+use AndyDefer\LaravelSearch\Contracts\Services\TextNormalizerInterface;
 use AndyDefer\LaravelSearch\Records\MatchResultRecord;
 use AndyDefer\LaravelSearch\Records\SearchIndexFiltersRecord;
 use AndyDefer\LaravelSearch\Records\SearchIndexRecord;
 use AndyDefer\LaravelSearch\Records\SearchQueryRecord;
 use AndyDefer\LaravelSearch\Records\SearchResultCollectionRecord;
 use AndyDefer\LaravelSearch\Records\SearchResultRecord;
-use AndyDefer\LaravelSearch\Repositories\SearchIndexRepository;
 use AndyDefer\PhpVo\ValueObjects\Types\FloatVO;
 use AndyDefer\PhpVo\ValueObjects\Types\StringVO;
 use Illuminate\Database\Eloquent\Model;
 
-final class SearchService implements SearchServiceInterface
+final class SearchService implements SearchInterface
 {
     public function __construct(
-        private readonly SearchIndexRepository $repository,
-        private readonly QueryProcessorService $queryProcessor,
+        private readonly SearchIndexRepositoryInterface $repository,
+        private readonly QueryProcessorInterface $queryProcessor,
         private readonly SearchConfig $config,
-        private readonly TextNormalizerService $normalizer,
-        private readonly NgramService $ngramService,
-        private readonly CandidatesFinderServiceInterface $candidatesFinder,
+        private readonly TextNormalizerInterface $normalizer,
+        private readonly CandidatesFinderInterface $candidatesFinder,
     ) {}
 
     public function search(SearchQueryRecord $query): SearchResultCollectionRecord

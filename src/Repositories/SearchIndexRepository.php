@@ -6,12 +6,15 @@ namespace AndyDefer\LaravelSearch\Repositories;
 
 use AndyDefer\DomainStructures\Abstracts\AbstractRecord;
 use AndyDefer\DomainStructures\Collections\Utility\StringTypedCollection;
+use AndyDefer\LaravelSearch\Collections\SearchIndexCollection;
 use AndyDefer\LaravelSearch\Collections\WordVectorCollection;
+use AndyDefer\LaravelSearch\Configs\SearchConfig;
+use AndyDefer\LaravelSearch\Contracts\Repositories\SearchIndexRepositoryInterface;
+use AndyDefer\LaravelSearch\Contracts\Services\NgramInterface;
+use AndyDefer\LaravelSearch\Contracts\Services\WordVectorParserInterface;
 use AndyDefer\LaravelSearch\Models\SearchIndex;
 use AndyDefer\LaravelSearch\Records\SearchIndexFiltersRecord;
 use AndyDefer\LaravelSearch\Records\SearchIndexRecord;
-use AndyDefer\LaravelSearch\Services\NgramService;
-use AndyDefer\LaravelSearch\Services\WordVectorParserService;
 use AndyDefer\LaravelSearch\ValueObjects\SearchCandidatesVO;
 use AndyDefer\PhpVo\ValueObjects\Types\StringVO;
 use AndyDefer\Repository\AbstractRepository;
@@ -21,11 +24,12 @@ use AndyDefer\Repository\ValueObjects\SortColumns;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Support\Collection;
 
-final class SearchIndexRepository extends AbstractRepository
+final class SearchIndexRepository extends AbstractRepository implements SearchIndexRepositoryInterface
 {
     public function __construct(
-        private readonly NgramService $ngramService,
-        private readonly WordVectorParserService $wordVectorParser,
+        private readonly NgramInterface $ngramService,
+        private readonly WordVectorParserInterface $wordVectorParser,
+        private readonly SearchConfig $config,
     ) {
         parent::__construct(SearchIndex::class, SearchIndexRecord::class);
     }
@@ -79,11 +83,10 @@ final class SearchIndexRepository extends AbstractRepository
 
     public function findByWord(StringVO $word): Collection
     {
-        $collection = $this->wordVectorParser->parse([$word->getValue()]);
-        $uris = $this->wordVectorParser->unparse($collection);
+        $uris = $this->wordVectorParser->parse([$word->getValue()]);
 
         $filters = SearchIndexFiltersRecord::from([
-            'item_words' => StringTypedCollection::from($uris),
+            'item_words' => $uris,
         ]);
 
         $findBy = FindByRecord::from([
@@ -99,11 +102,10 @@ final class SearchIndexRepository extends AbstractRepository
         int $limit = 10,
         ?SelectColumns $columns = null
     ): Collection {
-        $collection = $this->wordVectorParser->parse([$word->getValue()]);
-        $uris = $this->wordVectorParser->unparse($collection);
+        $uris = $this->wordVectorParser->parse([$word->getValue()]);
 
         $filters = SearchIndexFiltersRecord::from([
-            'item_words' => StringTypedCollection::from($uris),
+            'item_words' => $uris,
         ]);
 
         $findBy = FindByRecord::from([
@@ -232,13 +234,12 @@ final class SearchIndexRepository extends AbstractRepository
         StringVO $sourceType,
         ?StringVO $sourceId = null
     ): Collection {
-        $collection = $this->wordVectorParser->parse([$word->getValue()]);
-        $uris = $this->wordVectorParser->unparse($collection);
+        $uris = $this->wordVectorParser->parse([$word->getValue()]);
 
         $filters = SearchIndexFiltersRecord::from([
             'searchable_type' => $sourceType,
             'searchable_id' => $sourceId,
-            'item_words' => StringTypedCollection::from($uris),
+            'item_words' => $uris,
         ]);
 
         $findBy = FindByRecord::from([
@@ -254,11 +255,10 @@ final class SearchIndexRepository extends AbstractRepository
         int $limit = 20,
         ?SelectColumns $columns = null
     ): Collection {
-        $collection = $this->wordVectorParser->parse([$word->getValue()]);
-        $uris = $this->wordVectorParser->unparse($collection);
+        $uris = $this->wordVectorParser->parse([$word->getValue()]);
 
         $filters = SearchIndexFiltersRecord::from([
-            'item_words' => StringTypedCollection::from($uris),
+            'item_words' => $uris,
         ]);
 
         $findBy = FindByRecord::from([
@@ -311,113 +311,45 @@ final class SearchIndexRepository extends AbstractRepository
     }
 
     // ============================================================
-    // MÉTHODES POUR RÉCUPÉRER DES CANDIDATS
+    // MÉTHODE POUR RÉCUPÉRER DES CANDIDATS PAR SIMILARITÉ
     // ============================================================
-
-    public function findCandidates(SearchCandidatesVO $candidates): Collection
-    {
-        $words = $candidates->getWords();
-        $ngrams = $candidates->getNgrams();
-        $filters = $candidates->getFilters();
-        $limit = $candidates->getLimit();
-
-        $wordArray = $words->toArray();
-        $ngramArray = $ngrams->toArray();
-
-        $hasWords = ! empty($wordArray);
-        $hasNgrams = ! empty($ngramArray);
-
-        if (! $hasWords && ! $hasNgrams) {
-            return new Collection;
-        }
-
-        $query = $this->model->newQuery();
-        $this->applyFilters($query, $filters);
-
-        $query->where(function ($q) use ($wordArray, $ngramArray, $hasWords, $hasNgrams) {
-            if ($hasNgrams) {
-                $q->where(function ($subQ) use ($ngramArray) {
-                    foreach ($ngramArray as $ngram) {
-                        if (is_string($ngram) && strlen(trim($ngram)) >= 2) {
-                            $subQ->orWhereJsonContains('ngrams', $ngram);
-                        }
-                    }
-                });
-            }
-
-            if ($hasWords) {
-                $q->where(function ($subQ) use ($wordArray) {
-                    foreach ($wordArray as $word) {
-                        if (is_string($word) && strlen(trim($word)) >= 2) {
-                            $subQ->orWhere('item_words', 'like', '%'.$word.'%');
-                        }
-                    }
-                });
-            }
-        });
-
-        $query->limit($limit);
-        $query->orderBy('created_at', 'desc');
-
-        return $query->get();
-    }
 
     public function findCandidatesBySimilarity(
         SearchCandidatesVO $candidates,
         WordVectorCollection $queryWordVectors,
-        int $minCommonBigrams = 2,
-        int $minCommonMetaphoneBigrams = 1
-    ): Collection {
-        $words = $candidates->getWords();
-        $ngrams = $candidates->getNgrams();
+        int $minCommonBigrams = 2
+    ): SearchIndexCollection {
         $filters = $candidates->getFilters();
-        $limit = $candidates->getLimit();
-
-        $wordArray = $words->toArray();
-        $ngramArray = $ngrams->toArray();
-
-        $hasWords = ! empty($wordArray);
-        $hasNgrams = ! empty($ngramArray);
-
-        if (! $hasWords && ! $hasNgrams) {
-            return new Collection;
-        }
 
         $query = $this->model->newQuery();
         $this->applyFilters($query, $filters);
 
-        // Extraire les bigrams et metaphone_bigrams de la requête
-        $queryBigrams = $queryWordVectors->getAllBigrams();
-        $queryMetaphoneBigrams = $queryWordVectors->getAllMetaphoneBigrams();
+        // Extraire tous les bigrams de la requête
+        $queryBigrams = [];
 
-        $query->where(function ($q) use ($wordArray, $ngramArray, $hasWords, $hasNgrams) {
-            // Recherche par n-grams (OR)
-            if ($hasNgrams) {
-                $q->where(function ($subQ) use ($ngramArray) {
-                    foreach ($ngramArray as $ngram) {
-                        if (is_string($ngram) && strlen(trim($ngram)) >= 2) {
-                            $subQ->orWhereJsonContains('ngrams', $ngram);
-                        }
-                    }
-                });
-            }
+        foreach ($queryWordVectors as $vector) {
+            $queryBigrams = array_merge($queryBigrams, $vector->bigrams->toArray());
+        }
 
-            // Recherche par similarité sur item_words (bigrams et metaphone)
-            if ($hasWords) {
-                $q->orWhere(function ($subQ) use ($wordArray) {
-                    foreach ($wordArray as $word) {
-                        if (is_string($word) && strlen(trim($word)) >= 2) {
-                            // Au moins $minCommonBigrams bigrams communs
-                            $subQ->orWhere('item_words', 'like', '%'.$word.'%');
-                        }
-                    }
-                });
+        $queryBigrams = array_unique($queryBigrams);
+
+        // Rechercher les indexes qui ont des bigrams communs
+        $query->where(function ($q) use ($queryBigrams) {
+            foreach ($queryBigrams as $bigram) {
+                $q->orWhere('item_words', 'like', '%'.$bigram.'%');
             }
         });
 
-        $query->limit($limit);
+        $query->limit($this->config->getMaxCandidates());
         $query->orderBy('created_at', 'desc');
 
-        return $query->get();
+        $models = $query->get();
+
+        $collection = new SearchIndexCollection;
+        foreach ($models as $model) {
+            $collection->add($model->toRecord());
+        }
+
+        return $collection;
     }
 }

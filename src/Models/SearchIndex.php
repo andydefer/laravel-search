@@ -75,10 +75,24 @@ class SearchIndex extends Model
 
     public function getItemWords(): WordVectorCollection
     {
+        $items = $this->item_words ?? [];
+
+        if (empty($items)) {
+            return new WordVectorCollection;
+        }
+
         /** @var WordVectorParserService $parser */
         $parser = app(WordVectorParserService::class);
 
-        return $parser->parse($this->item_words ?? []);
+        $first = reset($items);
+
+        if (is_array($first) && isset($first['word'])) {
+            $words = array_column($items, 'word');
+
+            return $parser->parse($words);
+        }
+
+        return $parser->parse($items);
     }
 
     public function getNgrams(): StringTypedCollection

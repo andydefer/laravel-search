@@ -6,8 +6,9 @@ namespace AndyDefer\LaravelSearch\Services;
 
 use AndyDefer\DomainStructures\Utils\SetCollection;
 use AndyDefer\LaravelSearch\Configs\SearchConfig;
+use AndyDefer\LaravelSearch\Contracts\Services\NgramInterface;
 
-final class NgramService
+final class NgramService implements NgramInterface
 {
     public function __construct(
         private readonly SearchConfig $config,

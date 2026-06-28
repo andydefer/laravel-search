@@ -36,13 +36,14 @@ final class QueryProcessorServiceTest extends IntegrationTestCase
 
         $configRepository = app(ConfigRepository::class);
 
-        // Configurer les poids pour les tests
         $configRepository->set('search.gram_weights', [
             2 => 0.3,
             3 => 0.5,
             4 => 0.7,
             'default' => 1.0,
         ]);
+
+        $configRepository->set('search.stop_words', ['le', 'la', 'les', 'un', 'une', 'des', 'et', 'ou']);
 
         $this->config = new SearchConfig($configRepository);
         $this->normalizer = $this->app->make(TextNormalizerService::class);
@@ -127,7 +128,7 @@ final class QueryProcessorServiceTest extends IntegrationTestCase
     }
 
     // ============================================================
-    // TESTS DE calculateMaxScore (CORRIGÉS)
+    // TESTS DE calculateMaxScore
     // ============================================================
 
     public function test_calculate_max_score_for_short_word(): void
@@ -142,7 +143,6 @@ final class QueryProcessorServiceTest extends IntegrationTestCase
     {
         $result = $this->service->calculateMaxScore('test');
 
-        // test: gramLength 3 (0.5) + gramLength 3 (0.5) + gramLength 2 (0.3) = 1.3
         $this->assertEquals(1.3, $result->getValue());
     }
 
@@ -150,7 +150,6 @@ final class QueryProcessorServiceTest extends IntegrationTestCase
     {
         $result = $this->service->calculateMaxScore('testing');
 
-        // testing: 5 × 3-grams (0.5) + 1 × 2-grams (0.3) = 2.8
         $this->assertEquals(2.8, $result->getValue());
     }
 
@@ -158,7 +157,6 @@ final class QueryProcessorServiceTest extends IntegrationTestCase
     {
         $result = $this->service->calculateMaxScore('ordinateur');
 
-        // ordinateur: 8 × 3-grams (0.5) + 1 × 2-grams (0.3) = 4.3
         $this->assertEquals(4.3, $result->getValue());
     }
 
@@ -350,26 +348,26 @@ final class QueryProcessorServiceTest extends IntegrationTestCase
     }
 
     // ============================================================
-    // TESTS DE SORT (CORRIGÉ)
+    // TESTS DE SORT
     // ============================================================
 
     public function test_sort_results(): void
     {
         $results = new MatchResultCollection;
         $results->add(MatchResultRecord::from([
-            'score' => 0.5,
-            'max_possible' => 1.0,
-            'percentage' => 50.0,
+            'score' => FloatVO::from(0.5),
+            'max_possible' => FloatVO::from(1.0),
+            'percentage' => FloatVO::from(50.0),
         ]));
         $results->add(MatchResultRecord::from([
-            'score' => 0.8,
-            'max_possible' => 1.0,
-            'percentage' => 80.0,
+            'score' => FloatVO::from(0.8),
+            'max_possible' => FloatVO::from(1.0),
+            'percentage' => FloatVO::from(80.0),
         ]));
         $results->add(MatchResultRecord::from([
-            'score' => 0.3,
-            'max_possible' => 1.0,
-            'percentage' => 30.0,
+            'score' => FloatVO::from(0.3),
+            'max_possible' => FloatVO::from(1.0),
+            'percentage' => FloatVO::from(30.0),
         ]));
 
         $sorted = $this->service->sortResults($results);
@@ -416,31 +414,17 @@ final class QueryProcessorServiceTest extends IntegrationTestCase
             'ngrams' => StringTypedCollection::from($this->ngramService->generate('jean')->toArray()),
         ]));
 
-        $itemWords1 = new ItemWordsCollection;
-        $itemWords1->add(ItemWordRecord::from([
+        $itemWords = new ItemWordsCollection;
+        $itemWords->add(ItemWordRecord::from([
             'normalized' => 'jean',
             'ngrams' => StringTypedCollection::from($this->ngramService->generate('jean')->toArray()),
             'max_score' => FloatVO::from(1.5),
         ]));
 
-        $itemWords2 = new ItemWordsCollection;
-        $itemWords2->add(ItemWordRecord::from([
-            'normalized' => 'jean',
-            'ngrams' => StringTypedCollection::from($this->ngramService->generate('jean')->toArray()),
-            'max_score' => FloatVO::from(1.5),
-        ]));
+        $result = $this->service->computeScore($queryWords, $itemWords);
 
-        $result1 = $this->service->computeScore($queryWords, $itemWords1);
-        $result2 = $this->service->computeScore($queryWords, $itemWords2);
-
-        $this->assertNotNull($result1);
-        $this->assertNotNull($result2);
-
-        $score1 = $result1->first()->percentage->getValue();
-        $score2 = $result2->first()->percentage->getValue();
-
-        $this->assertEquals(100.0, $score1);
-        $this->assertGreaterThan(80, $score2);
+        $this->assertNotNull($result);
+        $this->assertEquals(100.0, $result->first()->percentage->getValue());
     }
 
     public function test_scoring_names_with_accents(): void

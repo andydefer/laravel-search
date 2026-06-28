@@ -6,6 +6,7 @@ namespace AndyDefer\LaravelSearch\Tests\Integration\Services;
 
 use AndyDefer\DomainStructures\Collections\Utility\StringTypedCollection;
 use AndyDefer\LaravelSearch\Collections\SearchIndexCollection;
+use AndyDefer\LaravelSearch\Configs\SearchConfig;
 use AndyDefer\LaravelSearch\Records\SearchIndexFiltersRecord;
 use AndyDefer\LaravelSearch\Repositories\SearchIndexRepository;
 use AndyDefer\LaravelSearch\Services\NgramService;
@@ -31,6 +32,8 @@ final class SearchIndexServiceTest extends IntegrationTestCase
 
     private NgramService $ngramService;
 
+    private SearchConfig $config;
+
     protected function setUp(): void
     {
         parent::setUp();
@@ -38,7 +41,8 @@ final class SearchIndexServiceTest extends IntegrationTestCase
         $this->normalizer = $this->app->make(TextNormalizerService::class);
         $this->ngramService = $this->app->make(NgramService::class);
         $this->wordVectorParser = $this->app->make(WordVectorParserService::class);
-        $this->repository = new SearchIndexRepository($this->ngramService, $this->wordVectorParser);
+        $this->config = $this->app->make(SearchConfig::class);
+        $this->repository = new SearchIndexRepository($this->ngramService, $this->wordVectorParser, $this->config);
 
         $this->service = new SearchIndexService(
             $this->repository,
@@ -60,15 +64,13 @@ final class SearchIndexServiceTest extends IntegrationTestCase
         $collection = $this->service->index($user);
 
         $this->assertInstanceOf(SearchIndexCollection::class, $collection);
-        $this->assertEquals(3, $collection->count()); // 3 colonnes: name, email, description
+        $this->assertEquals(3, $collection->count());
 
-        // Vérifier les colonnes indexées
         $sourceColumns = $collection->map(fn ($record) => $record->source_column->getValue())->toArray();
         $this->assertContains('name', $sourceColumns);
         $this->assertContains('email', $sourceColumns);
         $this->assertContains('description', $sourceColumns);
 
-        // Vérifier chaque index
         foreach ($collection as $index) {
             $this->assertEquals(TestUser::class, $index->searchable_type->getValue());
             $this->assertEquals((string) $user->id, $index->searchable_id->getValue());
@@ -88,7 +90,6 @@ final class SearchIndexServiceTest extends IntegrationTestCase
 
         $collection = $this->service->index($user);
 
-        // Seulement 2 colonnes indexées (email est vide)
         $this->assertEquals(2, $collection->count());
 
         $sourceColumns = $collection->map(fn ($record) => $record->source_column->getValue())->toArray();
@@ -99,7 +100,6 @@ final class SearchIndexServiceTest extends IntegrationTestCase
 
     public function test_index_all(): void
     {
-        // Créer des utilisateurs actifs
         TestUser::create([
             'name' => 'User 1',
             'email' => 'user1@example.com',
@@ -121,15 +121,13 @@ final class SearchIndexServiceTest extends IntegrationTestCase
 
         $count = $this->service->indexAll(TestUser::class);
 
-        // Seuls 2 utilisateurs actifs doivent être indexés
         $this->assertEquals(2, $count);
 
-        $filters = new SearchIndexFiltersRecord(
-            searchable_type: StringVO::from(TestUser::class),
-        );
+        $filters = SearchIndexFiltersRecord::from([
+            'searchable_type' => StringVO::from(TestUser::class),
+        ]);
 
         $indexedCount = $this->repository->countByFilters($filters);
-        // 2 utilisateurs × 3 colonnes = 6 indexes
         $this->assertEquals(6, $indexedCount);
     }
 
@@ -166,25 +164,20 @@ final class SearchIndexServiceTest extends IntegrationTestCase
             'is_active' => true,
         ]);
 
-        // Indexer
         $collection = $this->service->index($user);
         $originalIds = $collection->map(fn ($record) => $record->id->getValue())->toArray();
 
-        // Modifier
         $user->update(['name' => 'John Smith']);
 
-        // Réindexer
         $newCollection = $this->service->reindex($user);
 
         $this->assertEquals(3, $newCollection->count());
 
-        // Vérifier que les IDs sont différents
         $newIds = $newCollection->map(fn ($record) => $record->id->getValue())->toArray();
         foreach ($originalIds as $id) {
             $this->assertNotContains($id, $newIds);
         }
 
-        // Vérifier que le nom a changé
         $nameIndex = $newCollection->filter(fn ($record) => $record->source_column->getValue() === 'name')->first();
         $this->assertStringContainsString('John Smith', $nameIndex->original_text->getValue());
     }
@@ -198,18 +191,15 @@ final class SearchIndexServiceTest extends IntegrationTestCase
             'is_active' => true,
         ]);
 
-        // Indexer
         $count = $this->service->indexAll(TestUser::class);
         $this->assertEquals(1, $count);
 
-        // Réindexer tout
         $count = $this->service->reindexAll(TestUser::class);
         $this->assertEquals(1, $count);
 
-        // Vérifier qu'il y a 3 indexes (3 colonnes)
-        $filters = new SearchIndexFiltersRecord(
-            searchable_type: StringVO::from(TestUser::class),
-        );
+        $filters = SearchIndexFiltersRecord::from([
+            'searchable_type' => StringVO::from(TestUser::class),
+        ]);
         $indexedCount = $this->repository->countByFilters($filters);
         $this->assertEquals(3, $indexedCount);
     }
@@ -226,22 +216,19 @@ final class SearchIndexServiceTest extends IntegrationTestCase
         $collection = $this->service->index($user);
         $firstId = $collection->first()->id->getValue();
 
-        // Vérifier que l'index existe
         $found = $this->repository->find($firstId);
         $this->assertNotNull($found);
 
-        // Supprimer
         $deleted = $this->service->delete($user);
         $this->assertTrue($deleted);
 
-        // Vérifier que tous les indexes ont été supprimés
         $found = $this->repository->find($firstId);
         $this->assertNull($found);
 
-        $filters = new SearchIndexFiltersRecord(
-            searchable_type: StringVO::from(TestUser::class),
-            searchable_id: StringVO::from((string) $user->id),
-        );
+        $filters = SearchIndexFiltersRecord::from([
+            'searchable_type' => StringVO::from(TestUser::class),
+            'searchable_id' => StringVO::from((string) $user->id),
+        ]);
         $remaining = $this->repository->countByFilters($filters);
         $this->assertEquals(0, $remaining);
     }
@@ -261,27 +248,24 @@ final class SearchIndexServiceTest extends IntegrationTestCase
             'is_published' => true,
         ]);
 
-        // Indexer
         $this->service->indexAll(TestUser::class);
         $this->service->indexAll(TestProduct::class);
 
-        // Supprimer tous les users (3 indexes par user = 3)
         $count = $this->service->deleteAll(TestUser::class);
         $this->assertEquals(3, $count);
 
-        // Vérifier que seuls les users ont été supprimés
-        $filtersUser = new SearchIndexFiltersRecord(
-            searchable_type: StringVO::from(TestUser::class),
-        );
-        $filtersProduct = new SearchIndexFiltersRecord(
-            searchable_type: StringVO::from(TestProduct::class),
-        );
+        $filtersUser = SearchIndexFiltersRecord::from([
+            'searchable_type' => StringVO::from(TestUser::class),
+        ]);
+        $filtersProduct = SearchIndexFiltersRecord::from([
+            'searchable_type' => StringVO::from(TestProduct::class),
+        ]);
 
         $usersCount = $this->repository->countByFilters($filtersUser);
         $productsCount = $this->repository->countByFilters($filtersProduct);
 
         $this->assertEquals(0, $usersCount);
-        $this->assertEquals(3, $productsCount); // 3 colonnes pour Product
+        $this->assertEquals(3, $productsCount);
     }
 
     public function test_delete_by_id(): void
@@ -302,11 +286,10 @@ final class SearchIndexServiceTest extends IntegrationTestCase
         $found = $this->repository->find($id);
         $this->assertNull($found);
 
-        // Vérifier que les autres indexes existent encore
-        $filters = new SearchIndexFiltersRecord(
-            searchable_type: StringVO::from(TestUser::class),
-            searchable_id: StringVO::from((string) $user->id),
-        );
+        $filters = SearchIndexFiltersRecord::from([
+            'searchable_type' => StringVO::from(TestUser::class),
+            'searchable_id' => StringVO::from((string) $user->id),
+        ]);
         $remaining = $this->repository->countByFilters($filters);
         $this->assertEquals(2, $remaining);
     }
@@ -325,10 +308,10 @@ final class SearchIndexServiceTest extends IntegrationTestCase
         $deleted = $this->service->deleteByEntityId(TestUser::class, (string) $user->id);
         $this->assertTrue($deleted);
 
-        $filters = new SearchIndexFiltersRecord(
-            searchable_type: StringVO::from(TestUser::class),
-            searchable_id: StringVO::from((string) $user->id),
-        );
+        $filters = SearchIndexFiltersRecord::from([
+            'searchable_type' => StringVO::from(TestUser::class),
+            'searchable_id' => StringVO::from((string) $user->id),
+        ]);
         $remaining = $this->repository->countByFilters($filters);
         $this->assertEquals(0, $remaining);
     }
@@ -351,7 +334,6 @@ final class SearchIndexServiceTest extends IntegrationTestCase
         $this->service->indexAll(TestUser::class);
 
         $count = $this->service->getIndexedCount(TestUser::class);
-        // 2 entités uniques
         $this->assertEquals(2, $count);
     }
 
@@ -378,7 +360,6 @@ final class SearchIndexServiceTest extends IntegrationTestCase
 
     public function test_sync(): void
     {
-        // Créer des utilisateurs
         $user1 = TestUser::create([
             'name' => 'User 1',
             'email' => 'user1@example.com',
@@ -398,28 +379,23 @@ final class SearchIndexServiceTest extends IntegrationTestCase
             'is_active' => false,
         ]);
 
-        // Indexer seulement User 1
         $this->service->index($user1);
 
-        // Synchroniser tout
         $result = $this->service->sync(TestUser::class);
 
-        // User 1 déjà indexé → reindexé, User 2 nouvellement indexé, User 3 ignoré (shouldBeIndexed false)
-        $this->assertEquals(2, $result['indexed']); // User1 + User2
+        $this->assertEquals(2, $result['indexed']);
         $this->assertEquals(0, $result['deleted']);
-        $this->assertEquals(1, $result['skipped']); // User3 (inactif)
+        $this->assertEquals(1, $result['skipped']);
 
-        // Vérifier que 2 utilisateurs × 3 colonnes = 6 indexes
-        $filters = new SearchIndexFiltersRecord(
-            searchable_type: StringVO::from(TestUser::class),
-        );
+        $filters = SearchIndexFiltersRecord::from([
+            'searchable_type' => StringVO::from(TestUser::class),
+        ]);
         $indexed = $this->repository->countByFilters($filters);
         $this->assertEquals(6, $indexed);
     }
 
     public function test_sync_with_delete(): void
     {
-        // Créer un utilisateur actif
         $user = TestUser::create([
             'name' => 'User 1',
             'email' => 'user1@example.com',
@@ -427,22 +403,19 @@ final class SearchIndexServiceTest extends IntegrationTestCase
             'is_active' => true,
         ]);
 
-        // Indexer
         $this->service->index($user);
 
-        // Rendre inactif
         $user->update(['is_active' => false]);
 
-        // Synchroniser
         $result = $this->service->sync(TestUser::class);
 
         $this->assertEquals(0, $result['indexed']);
         $this->assertEquals(1, $result['deleted']);
         $this->assertEquals(0, $result['skipped']);
 
-        $filters = new SearchIndexFiltersRecord(
-            searchable_type: StringVO::from(TestUser::class),
-        );
+        $filters = SearchIndexFiltersRecord::from([
+            'searchable_type' => StringVO::from(TestUser::class),
+        ]);
         $indexed = $this->repository->countByFilters($filters);
         $this->assertEquals(0, $indexed);
     }
@@ -465,10 +438,6 @@ final class SearchIndexServiceTest extends IntegrationTestCase
         $this->assertContains('test', $ngrams);
     }
 
-    // ============================================================
-    // TESTS POUR LES PROPRIÉTÉS CALCULÉES (ADDRESS)
-    // ============================================================
-
     public function test_index_address_with_calculated_properties(): void
     {
         $user = TestUser::create([
@@ -487,7 +456,6 @@ final class SearchIndexServiceTest extends IntegrationTestCase
             'is_active' => true,
         ]);
 
-        // Charger la relation avant l'indexation
         $address->load('user');
 
         $collection = $this->service->index($address);
@@ -503,7 +471,6 @@ final class SearchIndexServiceTest extends IntegrationTestCase
         $this->assertContains('user_email', $sourceColumns);
         $this->assertContains('full_address', $sourceColumns);
 
-        // Vérifier les données pour chaque colonne
         foreach ($collection as $index) {
             $column = $index->source_column->getValue();
             $text = $index->original_text->getValue();
@@ -541,21 +508,20 @@ final class SearchIndexServiceTest extends IntegrationTestCase
 
         $this->service->index($address);
 
-        // Rechercher par ville
-        $filters = new SearchIndexFiltersRecord(
-            searchable_type: StringVO::from(TestAddress::class),
-            source_column: StringVO::from('address_city'),
-        );
+        $filters = SearchIndexFiltersRecord::from([
+            'searchable_type' => StringVO::from(TestAddress::class),
+            'source_column' => StringVO::from('address_city'),
+        ]);
 
         $words = StringTypedCollection::from(['paris']);
         $ngrams = StringTypedCollection::from($this->ngramService->generateFromText('paris')->toArray());
 
-        $candidatesVO = new SearchCandidatesVO($words, $ngrams, $filters, 10);
+        $candidatesVO = new SearchCandidatesVO($words, $ngrams, $filters);
 
-        $results = $this->repository->findCandidates($candidatesVO);
+        $results = $this->repository->findCandidatesBySimilarity($candidatesVO, $this->wordVectorParser->parse(['paris']), 2);
 
         $this->assertCount(1, $results);
-        $this->assertEquals('Paris', $results->first()->original_text);
+        $this->assertEquals('Paris', $results->first()->original_text->getValue());
     }
 
     public function test_search_address_by_country(): void
@@ -578,21 +544,20 @@ final class SearchIndexServiceTest extends IntegrationTestCase
 
         $this->service->index($address);
 
-        // Rechercher par pays
-        $filters = new SearchIndexFiltersRecord(
-            searchable_type: StringVO::from(TestAddress::class),
-            source_column: StringVO::from('address_country'),
-        );
+        $filters = SearchIndexFiltersRecord::from([
+            'searchable_type' => StringVO::from(TestAddress::class),
+            'source_column' => StringVO::from('address_country'),
+        ]);
 
         $words = StringTypedCollection::from(['france']);
         $ngrams = StringTypedCollection::from($this->ngramService->generateFromText('france')->toArray());
 
-        $candidatesVO = new SearchCandidatesVO($words, $ngrams, $filters, 10);
+        $candidatesVO = new SearchCandidatesVO($words, $ngrams, $filters);
 
-        $results = $this->repository->findCandidates($candidatesVO);
+        $results = $this->repository->findCandidatesBySimilarity($candidatesVO, $this->wordVectorParser->parse(['france']), 2);
 
         $this->assertCount(1, $results);
-        $this->assertEquals('France', $results->first()->original_text);
+        $this->assertEquals('France', $results->first()->original_text->getValue());
     }
 
     public function test_index_address_with_inactive_status(): void
@@ -657,14 +622,12 @@ final class SearchIndexServiceTest extends IntegrationTestCase
 
         $count = $this->service->indexAll(TestAddress::class);
 
-        // 2 adresses actives
         $this->assertEquals(2, $count);
 
-        $filters = new SearchIndexFiltersRecord(
-            searchable_type: StringVO::from(TestAddress::class),
-        );
+        $filters = SearchIndexFiltersRecord::from([
+            'searchable_type' => StringVO::from(TestAddress::class),
+        ]);
 
-        // 2 adresses × 7 colonnes = 14 indexes
         $indexedCount = $this->repository->countByFilters($filters);
         $this->assertEquals(14, $indexedCount);
     }

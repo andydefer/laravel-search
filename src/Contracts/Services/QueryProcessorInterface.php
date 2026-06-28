@@ -7,6 +7,7 @@ namespace AndyDefer\LaravelSearch\Contracts\Services;
 use AndyDefer\LaravelSearch\Collections\ItemWordsCollection;
 use AndyDefer\LaravelSearch\Collections\MatchResultCollection;
 use AndyDefer\LaravelSearch\Collections\QueryWordsCollection;
+use AndyDefer\PhpVo\ValueObjects\Types\FloatVO;
 use AndyDefer\PhpVo\ValueObjects\Types\StringVO;
 
 interface QueryProcessorInterface
@@ -16,4 +17,6 @@ interface QueryProcessorInterface
     public function computeScore(QueryWordsCollection $query_words, ItemWordsCollection $item_words): ?MatchResultCollection;
 
     public function sortResults(MatchResultCollection $results): MatchResultCollection;
+
+    public function calculateMaxScore(string $word): FloatVO;
 }

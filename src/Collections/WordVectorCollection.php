@@ -34,11 +34,11 @@ final class WordVectorCollection extends AbstractTypedCollection
         return array_unique($bigrams);
     }
 
-    public function getAllMetaphoneBigrams(): array
+    public function getAllmetaphoneBigrams(): array
     {
         $bigrams = [];
         foreach ($this->items as $record) {
-            $bigrams = array_merge($bigrams, $record->metaphoneBigrams->toArray());
+            $bigrams = array_merge($bigrams, $record->metaphone_bigrams->toArray());
         }
 
         return array_unique($bigrams);

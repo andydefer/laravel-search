@@ -5,8 +5,9 @@ declare(strict_types=1);
 namespace AndyDefer\LaravelSearch\Services;
 
 use AndyDefer\LaravelSearch\Configs\SearchConfig;
+use AndyDefer\LaravelSearch\Contracts\Services\TextNormalizerInterface;
 
-final class TextNormalizerService
+final class TextNormalizerService implements TextNormalizerInterface
 {
     /**
      * UNIQUEMENT les articles élidés l' et d'

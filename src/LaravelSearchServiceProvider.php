@@ -5,6 +5,15 @@ declare(strict_types=1);
 namespace AndyDefer\LaravelSearch;
 
 use AndyDefer\LaravelSearch\Configs\SearchConfig;
+use AndyDefer\LaravelSearch\Contracts\Configs\SearchConfigInterface;
+use AndyDefer\LaravelSearch\Contracts\Repositories\SearchIndexRepositoryInterface;
+use AndyDefer\LaravelSearch\Contracts\Services\CandidatesFinderInterface;
+use AndyDefer\LaravelSearch\Contracts\Services\NgramInterface;
+use AndyDefer\LaravelSearch\Contracts\Services\QueryProcessorInterface;
+use AndyDefer\LaravelSearch\Contracts\Services\SearchIndexInterface;
+use AndyDefer\LaravelSearch\Contracts\Services\SearchInterface;
+use AndyDefer\LaravelSearch\Contracts\Services\TextNormalizerInterface;
+use AndyDefer\LaravelSearch\Contracts\Services\WordVectorParserInterface;
 use AndyDefer\LaravelSearch\Repositories\SearchIndexRepository;
 use AndyDefer\LaravelSearch\Services\CandidatesFinderService;
 use AndyDefer\LaravelSearch\Services\NgramService;
@@ -25,6 +34,17 @@ class LaravelSearchServiceProvider extends ServiceProvider
             __DIR__.'/../config/laravel-search.php',
             'search'
         );
+
+        // Bind interfaces
+        $this->app->bind(SearchConfigInterface::class, SearchConfig::class);
+        $this->app->bind(TextNormalizerInterface::class, TextNormalizerService::class);
+        $this->app->bind(NgramInterface::class, NgramService::class);
+        $this->app->bind(WordVectorParserInterface::class, WordVectorParserService::class);
+        $this->app->bind(QueryProcessorInterface::class, QueryProcessorService::class);
+        $this->app->bind(SearchIndexRepositoryInterface::class, SearchIndexRepository::class);
+        $this->app->bind(CandidatesFinderInterface::class, CandidatesFinderService::class);
+        $this->app->bind(SearchInterface::class, SearchService::class);
+        $this->app->bind(SearchIndexInterface::class, SearchIndexService::class);
 
         // Services
         $this->app->singleton(SearchConfig::class, function ($app) {
@@ -64,7 +84,8 @@ class LaravelSearchServiceProvider extends ServiceProvider
         $this->app->singleton(SearchIndexRepository::class, function ($app) {
             return new SearchIndexRepository(
                 $app->make(NgramService::class),
-                $app->make(WordVectorParserService::class)
+                $app->make(WordVectorParserService::class),
+                $app->make(SearchConfig::class),
             );
         });
 
@@ -84,7 +105,6 @@ class LaravelSearchServiceProvider extends ServiceProvider
                 $app->make(QueryProcessorService::class),
                 $app->make(SearchConfig::class),
                 $app->make(TextNormalizerService::class),
-                $app->make(NgramService::class),
                 $app->make(CandidatesFinderService::class)
             );
         });
@@ -101,12 +121,10 @@ class LaravelSearchServiceProvider extends ServiceProvider
 
     public function boot(): void
     {
-        // Publication des fichiers de configuration
         $this->publishes([
             __DIR__.'/../config/laravel-search.php' => config_path('laravel-search.php'),
         ], 'search-config');
 
-        // Publication des migrations
         $this->publishes([
             __DIR__.'/../database/migrations/' => database_path('migrations'),
         ], 'search-migrations');

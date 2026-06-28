@@ -7,7 +7,7 @@ namespace AndyDefer\LaravelSearch\Contracts\Services;
 use AndyDefer\LaravelSearch\Collections\SearchIndexCollection;
 use AndyDefer\LaravelSearch\Contracts\Indexable;
 
-interface SearchIndexServiceInterface
+interface SearchIndexInterface
 {
     /**
      * Indexe une entité (un index par colonne)

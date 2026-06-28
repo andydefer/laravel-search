@@ -8,7 +8,7 @@ use AndyDefer\LaravelSearch\Records\SearchIndexFiltersRecord;
 use AndyDefer\LaravelSearch\Records\SearchQueryRecord;
 use AndyDefer\LaravelSearch\Records\SearchResultCollectionRecord;
 
-interface SearchServiceInterface
+interface SearchInterface
 {
     /**
      * Recherche avec scoring complet

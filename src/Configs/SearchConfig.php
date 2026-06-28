@@ -4,9 +4,10 @@ declare(strict_types=1);
 
 namespace AndyDefer\LaravelSearch\Configs;
 
+use AndyDefer\LaravelSearch\Contracts\Configs\SearchConfigInterface;
 use Illuminate\Contracts\Config\Repository as ConfigRepository;
 
-final class SearchConfig
+final class SearchConfig implements SearchConfigInterface
 {
     private const DEFAULT_GRAM_WEIGHTS = [
         2 => 0.3,
@@ -17,7 +18,7 @@ final class SearchConfig
 
     private const DEFAULT_MIN_LENGTH_RATIO = 0.6;
 
-    private const DEFAULT_MAX_CANDIDATES = 50;
+    private const DEFAULT_MAX_CANDIDATES = 200;
 
     private const DEFAULT_EARLY_STOP_THRESHOLD = 0.95;
 

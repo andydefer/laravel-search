@@ -8,8 +8,10 @@ use AndyDefer\DomainStructures\Collections\Utility\StringTypedCollection;
 use AndyDefer\LaravelSearch\Collections\ItemWordsCollection;
 use AndyDefer\LaravelSearch\Collections\MatchResultCollection;
 use AndyDefer\LaravelSearch\Collections\QueryWordsCollection;
-use AndyDefer\LaravelSearch\Configs\SearchConfig;
+use AndyDefer\LaravelSearch\Contracts\Configs\SearchConfigInterface;
+use AndyDefer\LaravelSearch\Contracts\Services\NgramInterface;
 use AndyDefer\LaravelSearch\Contracts\Services\QueryProcessorInterface;
+use AndyDefer\LaravelSearch\Contracts\Services\TextNormalizerInterface;
 use AndyDefer\LaravelSearch\Records\ItemWordRecord;
 use AndyDefer\LaravelSearch\Records\MatchResultRecord;
 use AndyDefer\LaravelSearch\Records\QueryWordRecord;
@@ -19,9 +21,9 @@ use AndyDefer\PhpVo\ValueObjects\Types\StringVO;
 final class QueryProcessorService implements QueryProcessorInterface
 {
     public function __construct(
-        private readonly SearchConfig $config,
-        private readonly TextNormalizerService $normalizer,
-        private readonly NgramService $ngramService,
+        private readonly SearchConfigInterface $config,
+        private readonly TextNormalizerInterface $normalizer,
+        private readonly NgramInterface $ngram,
     ) {}
 
     public function process(StringVO $query): QueryWordsCollection
@@ -41,7 +43,7 @@ final class QueryProcessorService implements QueryProcessorInterface
                 continue;
             }
 
-            $ngrams = $this->ngramService->generate($word)->toArray();
+            $ngrams = $this->ngram->generate($word)->toArray();
 
             $collection->add(QueryWordRecord::from([
                 'original' => StringVO::from($word),

@@ -17,27 +17,22 @@ final class SearchCandidatesVO extends AbstractValueObject
 
     private SearchIndexFiltersRecord $filters;
 
-    private int $limit;
-
     public function __construct(
         StringTypedCollection $words,
         StringTypedCollection $ngrams,
         SearchIndexFiltersRecord $filters,
-        int $limit = 100
     ) {
         $this->words = $words;
         $this->ngrams = $ngrams;
         $this->filters = $filters;
-        $this->limit = $limit;
     }
 
-    public static function empty(int $limit = 100): self
+    public static function empty(): self
     {
         return new self(
             words: StringTypedCollection::from([]),
             ngrams: StringTypedCollection::from([]),
             filters: new SearchIndexFiltersRecord,
-            limit: $limit,
         );
     }
 
@@ -56,11 +51,6 @@ final class SearchCandidatesVO extends AbstractValueObject
         return $this->filters;
     }
 
-    public function getLimit(): int
-    {
-        return $this->limit;
-    }
-
     public function hasWords(): bool
     {
         return ! $this->words->isEmpty();
@@ -77,12 +67,16 @@ final class SearchCandidatesVO extends AbstractValueObject
             'words' => $this->words->toArray(),
             'ngrams' => $this->ngrams->toArray(),
             'filters' => $this->filters->toArray(),
-            'limit' => $this->limit,
         ];
     }
 
     public function getValue(): StrictAssociative
     {
         return StrictAssociative::from($this->toArray());
+    }
+
+    public static function getTypeName(): string
+    {
+        return 'search_candidates';
     }
 }

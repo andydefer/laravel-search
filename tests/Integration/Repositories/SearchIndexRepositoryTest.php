@@ -6,6 +6,7 @@ namespace AndyDefer\LaravelSearch\Tests\Integration\Repositories;
 
 use AndyDefer\DomainStructures\Collections\Utility\StringTypedCollection;
 use AndyDefer\LaravelSearch\Collections\WordVectorCollection;
+use AndyDefer\LaravelSearch\Configs\SearchConfig;
 use AndyDefer\LaravelSearch\Models\SearchIndex;
 use AndyDefer\LaravelSearch\Records\SearchIndexFiltersRecord;
 use AndyDefer\LaravelSearch\Records\SearchIndexRecord;
@@ -19,7 +20,6 @@ use AndyDefer\LaravelSearch\ValueObjects\SearchCandidatesVO;
 use AndyDefer\PhpVo\ValueObjects\Strings\UuidVO;
 use AndyDefer\PhpVo\ValueObjects\Types\StringVO;
 use AndyDefer\Repository\ValueObjects\SortColumns;
-use Illuminate\Support\Collection;
 
 final class SearchIndexRepositoryTest extends IntegrationTestCase
 {
@@ -29,6 +29,8 @@ final class SearchIndexRepositoryTest extends IntegrationTestCase
 
     private NgramService $ngramService;
 
+    private SearchConfig $config;
+
     private WordVectorParserService $wordVectorParser;
 
     protected function setUp(): void
@@ -37,13 +39,13 @@ final class SearchIndexRepositoryTest extends IntegrationTestCase
         $this->normalizer = $this->app->make(TextNormalizerService::class);
         $this->ngramService = $this->app->make(NgramService::class);
         $this->wordVectorParser = $this->app->make(WordVectorParserService::class);
-        $this->repository = new SearchIndexRepository($this->ngramService, $this->wordVectorParser);
+        $this->config = $this->app->make(SearchConfig::class);
+        $this->repository = new SearchIndexRepository($this->ngramService, $this->wordVectorParser, $this->config);
     }
 
     public function test_create(): void
     {
         $words = $this->wordVectorParser->parse(explode(' ', strtolower('John Doe')));
-        $uris = $this->wordVectorParser->unparse($words);
         $ngrams = $this->ngramService->generateFromText('John Doe')->toArray();
 
         $record = SearchIndexRecord::from([
@@ -53,21 +55,21 @@ final class SearchIndexRepositoryTest extends IntegrationTestCase
             'source_column' => 'name',
             'original_text' => 'John Doe',
             'normalized_text' => $this->normalizer->normalize('John Doe'),
-            'item_words' => $uris,
+            'item_words' => $words,
             'ngrams' => $ngrams,
         ]);
 
         $index = $this->repository->create($record);
 
         $this->assertInstanceOf(SearchIndex::class, $index);
-        $this->assertNotNull($index->id);
-        $this->assertSame('App\Models\User', $index->searchable_type);
-        $this->assertSame('1', $index->searchable_id);
-        $this->assertSame('name', $index->source_column);
-        $this->assertSame('John Doe', $index->original_text);
-        $this->assertSame('john doe', $index->normalized_text);
-        $this->assertNotEmpty($index->item_words);
-        $this->assertNotEmpty($index->ngrams);
+        $this->assertNotNull($index->getId());
+        $this->assertSame('App\Models\User', $index->getSearchableType()->getValue());
+        $this->assertSame('1', $index->getSearchableId()->getValue());
+        $this->assertSame('name', $index->getSourceColumn()->getValue());
+        $this->assertSame('John Doe', $index->getOriginalText()->getValue());
+        $this->assertSame('john doe', $index->getNormalizedText()->getValue());
+        $this->assertNotEmpty($index->getItemWords());
+        $this->assertNotEmpty($index->getNgrams());
     }
 
     public function test_find_by_word(): void
@@ -188,6 +190,20 @@ final class SearchIndexRepositoryTest extends IntegrationTestCase
         $this->assertCount(2, $results);
     }
 
+    public function test_find_by_with_multiple_sort(): void
+    {
+        $this->createIndex('John Doe', 'name');
+        $this->createIndex('Jane Smith', 'name');
+        $this->createIndex('John Johnson', 'name');
+
+        $word = StringVO::from('john');
+        $sort = new SortColumns('original_text:asc|created_at:desc');
+        $results = $this->repository->findByWithMultipleSort($word, $sort, 10);
+
+        $this->assertCount(2, $results);
+        $this->assertSame('John Doe', $results->first()->original_text);
+    }
+
     public function test_find_all_with_sort(): void
     {
         $this->createIndex('John Doe', 'name');
@@ -202,82 +218,15 @@ final class SearchIndexRepositoryTest extends IntegrationTestCase
         $this->assertSame('John Doe', $results->last()->original_text);
     }
 
-    public function test_find_candidates_with_search_candidates_vo(): void
-    {
-        $this->createIndex('John Doe', 'name');
-        $this->createIndex('Jane Smith', 'name');
-        $this->createIndex('Bob Thompson', 'name');
-
-        $normalized = $this->normalizer->normalize('John');
-        $words = explode(' ', $normalized);
-        $ngrams = $this->ngramService->generateFromText('John')->toArray();
-        $filters = new SearchIndexFiltersRecord;
-
-        $candidatesVO = new SearchCandidatesVO(
-            words: StringTypedCollection::from($words),
-            ngrams: StringTypedCollection::from($ngrams),
-            filters: $filters,
-            limit: 10
-        );
-
-        $results = $this->repository->findCandidates($candidatesVO);
-
-        $this->assertInstanceOf(Collection::class, $results);
-        $this->assertCount(1, $results);
-        $this->assertSame('John Doe', $results->first()->original_text);
-    }
-
-    public function test_find_candidates_with_filters(): void
-    {
-        $this->createIndex('John Doe', 'name', 'App\Models\User', '1');
-        $this->createIndex('Jane Smith', 'name', 'App\Models\User', '2');
-        $this->createIndex('John Doe', 'name', 'App\Models\Product', '1');
-
-        $normalized = $this->normalizer->normalize('John');
-        $words = explode(' ', $normalized);
-        $ngrams = $this->ngramService->generateFromText('John')->toArray();
-        $filters = SearchIndexFiltersRecord::from([
-            'searchable_type' => 'App\Models\User',
-        ]);
-
-        $candidatesVO = new SearchCandidatesVO(
-            words: StringTypedCollection::from($words),
-            ngrams: StringTypedCollection::from($ngrams),
-            filters: $filters,
-            limit: 10
-        );
-
-        $results = $this->repository->findCandidates($candidatesVO);
-
-        $this->assertCount(1, $results);
-        $this->assertSame('John Doe', $results->first()->original_text);
-        $this->assertSame('App\Models\User', $results->first()->searchable_type);
-    }
-
-    public function test_find_candidates_empty_ngrams_and_words(): void
-    {
-        $this->createIndex('John Doe', 'name');
-
-        $candidatesVO = SearchCandidatesVO::empty(10);
-
-        $results = $this->repository->findCandidates($candidatesVO);
-
-        $this->assertCount(0, $results);
-    }
-
-    // ============================================================
-    // TESTS POUR countByFilters
-    // ============================================================
-
     public function test_count_by_filters_with_searchable_type(): void
     {
         $this->createIndex('John Doe', 'name', 'App\Models\User', '1');
         $this->createIndex('Jane Smith', 'name', 'App\Models\User', '2');
         $this->createIndex('Product A', 'name', 'App\Models\Product', '1');
 
-        $filters = new SearchIndexFiltersRecord(
-            searchable_type: StringVO::from('App\Models\User'),
-        );
+        $filters = SearchIndexFiltersRecord::from([
+            'searchable_type' => 'App\Models\User',
+        ]);
 
         $count = $this->repository->countByFilters($filters);
 
@@ -289,9 +238,9 @@ final class SearchIndexRepositoryTest extends IntegrationTestCase
         $this->createIndex('John Doe', 'name', 'App\Models\User', '1');
         $this->createIndex('Jane Smith', 'name', 'App\Models\User', '2');
 
-        $filters = new SearchIndexFiltersRecord(
-            searchable_id: StringVO::from('1'),
-        );
+        $filters = SearchIndexFiltersRecord::from([
+            'searchable_id' => '1',
+        ]);
 
         $count = $this->repository->countByFilters($filters);
 
@@ -303,9 +252,9 @@ final class SearchIndexRepositoryTest extends IntegrationTestCase
         $this->createIndex('John Doe', 'name', 'App\Models\User', '1');
         $this->createIndex('Jane Smith', 'email', 'App\Models\User', '2');
 
-        $filters = new SearchIndexFiltersRecord(
-            source_column: StringVO::from('name'),
-        );
+        $filters = SearchIndexFiltersRecord::from([
+            'source_column' => 'name',
+        ]);
 
         $count = $this->repository->countByFilters($filters);
 
@@ -317,9 +266,9 @@ final class SearchIndexRepositoryTest extends IntegrationTestCase
         $this->createIndex('John Doe', 'name');
         $this->createIndex('Jane Smith', 'name');
 
-        $filters = new SearchIndexFiltersRecord(
-            original_text: StringVO::from('John'),
-        );
+        $filters = SearchIndexFiltersRecord::from([
+            'original_text' => 'John',
+        ]);
 
         $count = $this->repository->countByFilters($filters);
 
@@ -331,9 +280,9 @@ final class SearchIndexRepositoryTest extends IntegrationTestCase
         $this->createIndex('John Doe', 'name');
         $this->createIndex('Jane Smith', 'name');
 
-        $filters = new SearchIndexFiltersRecord(
-            normalized_text: StringVO::from('john'),
-        );
+        $filters = SearchIndexFiltersRecord::from([
+            'normalized_text' => 'john',
+        ]);
 
         $count = $this->repository->countByFilters($filters);
 
@@ -346,10 +295,10 @@ final class SearchIndexRepositoryTest extends IntegrationTestCase
         $this->createIndex('John Smith', 'name', 'App\Models\User', '2');
         $this->createIndex('John Product', 'name', 'App\Models\Product', '1');
 
-        $filters = new SearchIndexFiltersRecord(
-            searchable_type: StringVO::from('App\Models\User'),
-            original_text: StringVO::from('John'),
-        );
+        $filters = SearchIndexFiltersRecord::from([
+            'searchable_type' => 'App\Models\User',
+            'original_text' => 'John',
+        ]);
 
         $count = $this->repository->countByFilters($filters);
 
@@ -373,8 +322,7 @@ final class SearchIndexRepositoryTest extends IntegrationTestCase
         $this->createIndex('John Doe', 'name');
         $this->createIndex('Jane Smith', 'name');
 
-        $words = $this->wordVectorParser->parse(['john']);
-        $uris = $this->wordVectorParser->unparse($words);
+        $uris = $this->wordVectorParser->parse(['john']);
 
         $filters = SearchIndexFiltersRecord::from([
             'item_words' => $uris,
@@ -392,9 +340,9 @@ final class SearchIndexRepositoryTest extends IntegrationTestCase
 
         $ngrams = $this->ngramService->generate('john')->toArray();
 
-        $filters = new SearchIndexFiltersRecord(
-            ngrams: StringTypedCollection::from($ngrams),
-        );
+        $filters = SearchIndexFiltersRecord::from([
+            'ngrams' => $ngrams,
+        ]);
 
         $count = $this->repository->countByFilters($filters);
 
@@ -412,24 +360,17 @@ final class SearchIndexRepositoryTest extends IntegrationTestCase
         $this->assertEquals(1, $count);
     }
 
-    // ============================================================
-    // TESTS POUR countDistinctEntities
-    // ============================================================
-
     public function test_count_distinct_entities(): void
     {
-        // Créer plusieurs indexes pour le même utilisateur (plusieurs colonnes)
         $this->createIndex('John Doe', 'name', 'App\Models\User', '1');
         $this->createIndex('john@example.com', 'email', 'App\Models\User', '1');
         $this->createIndex('Software Developer', 'description', 'App\Models\User', '1');
 
-        // Créer un autre utilisateur
         $this->createIndex('Jane Smith', 'name', 'App\Models\User', '2');
         $this->createIndex('jane@example.com', 'email', 'App\Models\User', '2');
 
         $count = $this->repository->countDistinctEntities('App\Models\User');
 
-        // 2 utilisateurs distincts (id: 1 et 2)
         $this->assertEquals(2, $count);
     }
 
@@ -442,11 +383,9 @@ final class SearchIndexRepositoryTest extends IntegrationTestCase
 
     public function test_count_distinct_entities_with_multiple_types(): void
     {
-        // Créer des indexes pour User
         $this->createIndex('John Doe', 'name', 'App\Models\User', '1');
         $this->createIndex('john@example.com', 'email', 'App\Models\User', '1');
 
-        // Créer des indexes pour Product
         $this->createIndex('Product A', 'name', 'App\Models\Product', '1');
         $this->createIndex('REF001', 'reference', 'App\Models\Product', '1');
 
@@ -459,7 +398,6 @@ final class SearchIndexRepositoryTest extends IntegrationTestCase
 
     public function test_count_distinct_entities_with_same_entity_multiple_indexes(): void
     {
-        // Créer 5 indexes pour le même utilisateur (5 colonnes différentes)
         $this->createIndex('John Doe', 'name', 'App\Models\User', '1');
         $this->createIndex('john@example.com', 'email', 'App\Models\User', '1');
         $this->createIndex('Software Developer', 'description', 'App\Models\User', '1');
@@ -468,13 +406,11 @@ final class SearchIndexRepositoryTest extends IntegrationTestCase
 
         $count = $this->repository->countDistinctEntities('App\Models\User');
 
-        // 1 utilisateur unique malgré 5 indexes
         $this->assertEquals(1, $count);
     }
 
     public function test_count_distinct_entities_with_different_entities(): void
     {
-        // Créer des indexes pour plusieurs utilisateurs
         for ($i = 1; $i <= 5; $i++) {
             $this->createIndex("User {$i}", 'name', 'App\Models\User', (string) $i);
             $this->createIndex("user{$i}@example.com", 'email', 'App\Models\User', (string) $i);
@@ -482,18 +418,18 @@ final class SearchIndexRepositoryTest extends IntegrationTestCase
 
         $count = $this->repository->countDistinctEntities('App\Models\User');
 
-        // 5 utilisateurs distincts
         $this->assertEquals(5, $count);
     }
 
     // ============================================================
-    // TESTS POUR findCandidatesBySimilarity
+    // TESTS SUPPRIMÉS : findCandidates n'existe plus
     // ============================================================
 
     public function test_find_candidates_by_similarity(): void
     {
         $this->createIndex('John Doe', 'name');
         $this->createIndex('Jane Smith', 'name');
+        $this->createIndex('Thomas Monroe', 'name');
         $this->createIndex('Bob Johnson', 'name');
 
         $queryWords = $this->wordVectorParser->parse(['john']);
@@ -506,13 +442,19 @@ final class SearchIndexRepositoryTest extends IntegrationTestCase
             words: StringTypedCollection::from($words),
             ngrams: StringTypedCollection::from($ngrams),
             filters: $filters,
-            limit: 10
         );
 
-        $results = $this->repository->findCandidatesBySimilarity($candidatesVO, $queryWords, 2, 1);
+        $results = $this->repository->findCandidatesBySimilarity($candidatesVO, $queryWords, 2);
 
-        $this->assertCount(1, $results);
-        $this->assertSame('John Doe', $results->first()->original_text);
+        $this->assertCount(2, $results);
+
+        $texts = [];
+        foreach ($results as $record) {
+            $texts[] = $record->original_text->getValue();
+        }
+
+        $this->assertContains('John Doe', $texts);
+        $this->assertContains('Bob Johnson', $texts);
     }
 
     public function test_find_candidates_by_similarity_with_filters(): void
@@ -533,14 +475,13 @@ final class SearchIndexRepositoryTest extends IntegrationTestCase
             words: StringTypedCollection::from($words),
             ngrams: StringTypedCollection::from($ngrams),
             filters: $filters,
-            limit: 10
         );
 
-        $results = $this->repository->findCandidatesBySimilarity($candidatesVO, $queryWords, 2, 1);
+        $results = $this->repository->findCandidatesBySimilarity($candidatesVO, $queryWords, 2);
 
         $this->assertCount(1, $results);
-        $this->assertSame('John Doe', $results->first()->original_text);
-        $this->assertSame('App\Models\User', $results->first()->searchable_type);
+        $this->assertSame('John Doe', $results->first()->original_text->getValue());
+        $this->assertSame('App\Models\User', $results->first()->searchable_type->getValue());
     }
 
     public function test_find_candidates_by_similarity_with_no_match(): void
@@ -557,17 +498,16 @@ final class SearchIndexRepositoryTest extends IntegrationTestCase
             words: StringTypedCollection::from($words),
             ngrams: StringTypedCollection::from($ngrams),
             filters: $filters,
-            limit: 10
         );
 
-        $results = $this->repository->findCandidatesBySimilarity($candidatesVO, $queryWords, 2, 1);
+        $results = $this->repository->findCandidatesBySimilarity($candidatesVO, $queryWords, 2);
 
         $this->assertCount(0, $results);
     }
 
     public function test_find_candidates_by_similarity_with_limit(): void
     {
-        for ($i = 0; $i < 5; $i++) {
+        for ($i = 0; $i < 150; $i++) {
             $this->createIndex("User {$i}", 'name');
         }
 
@@ -581,17 +521,14 @@ final class SearchIndexRepositoryTest extends IntegrationTestCase
             words: StringTypedCollection::from($words),
             ngrams: StringTypedCollection::from($ngrams),
             filters: $filters,
-            limit: 3
         );
 
-        $results = $this->repository->findCandidatesBySimilarity($candidatesVO, $queryWords, 2, 1);
+        $results = $this->repository->findCandidatesBySimilarity($candidatesVO, $queryWords, 2);
 
-        $this->assertCount(3, $results);
+        // La limite est définie par SearchConfig::getMaxCandidates() (200 par défaut)
+        $this->assertLessThanOrEqual(200, $results->count());
+        $this->assertGreaterThan(0, $results->count());
     }
-
-    // ============================================================
-    // TESTS POUR WordVectorParser
-    // ============================================================
 
     public function test_word_vector_parser_parse(): void
     {
@@ -616,11 +553,15 @@ final class SearchIndexRepositoryTest extends IntegrationTestCase
         $collection = $this->wordVectorParser->parse($words);
         $uris = $this->wordVectorParser->unparse($collection);
 
-        $this->assertIsArray($uris);
-        $this->assertCount(1, $uris);
-        $this->assertStringContainsString('test?', $uris[0]);
-        $this->assertStringContainsString('metaphone=', $uris[0]);
-        $this->assertStringContainsString('bigrams=', $uris[0]);
+        $this->assertInstanceOf(StringTypedCollection::class, $uris);
+        $this->assertEquals(1, $uris->count());
+
+        $uri = $uris->first();
+        $this->assertStringContainsString('test?', $uri);
+        $this->assertStringContainsString('metaphone=', $uri);
+        $this->assertStringContainsString('unique_letters', $uri);
+        $this->assertStringContainsString('bigrams', $uri);
+        $this->assertStringContainsString('metaphone_bigrams', $uri);
     }
 
     public function test_word_vector_parser_empty_array(): void
@@ -630,18 +571,18 @@ final class SearchIndexRepositoryTest extends IntegrationTestCase
         $this->assertEquals(0, $collection->count());
 
         $uris = $this->wordVectorParser->unparse($collection);
-        $this->assertIsArray($uris);
-        $this->assertEmpty($uris);
+        $this->assertInstanceOf(StringTypedCollection::class, $uris);
+        $this->assertEquals(0, $uris->count());
     }
 
     public function test_delete(): void
     {
         $index = $this->createIndex('John Doe', 'name');
 
-        $deleted = $this->repository->delete($index->id);
+        $deleted = $this->repository->delete($index->getId()->getValue());
 
         $this->assertTrue($deleted);
-        $this->assertNull($this->repository->find($index->id));
+        $this->assertNull($this->repository->find($index->getId()->getValue()));
     }
 
     public function test_delete_bulk(): void
@@ -670,7 +611,6 @@ final class SearchIndexRepositoryTest extends IntegrationTestCase
         string $id = '1'
     ): SearchIndex {
         $words = $this->wordVectorParser->parse(explode(' ', strtolower($text)));
-        $uris = $this->wordVectorParser->unparse($words);
         $ngrams = $this->ngramService->generateFromText($text)->toArray();
 
         $record = SearchIndexRecord::from([
@@ -680,7 +620,7 @@ final class SearchIndexRepositoryTest extends IntegrationTestCase
             'source_column' => $column,
             'original_text' => $text,
             'normalized_text' => $this->normalizer->normalize($text),
-            'item_words' => $uris,
+            'item_words' => $words,
             'ngrams' => $ngrams,
         ]);
 

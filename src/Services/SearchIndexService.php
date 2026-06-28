@@ -8,26 +8,29 @@ use AndyDefer\DomainStructures\Collections\Utility\StringTypedCollection;
 use AndyDefer\LaravelSearch\Collections\SearchIndexCollection;
 use AndyDefer\LaravelSearch\Collections\WordVectorCollection;
 use AndyDefer\LaravelSearch\Contracts\Indexable;
-use AndyDefer\LaravelSearch\Contracts\Services\SearchIndexServiceInterface;
+use AndyDefer\LaravelSearch\Contracts\Repositories\SearchIndexRepositoryInterface;
+use AndyDefer\LaravelSearch\Contracts\Services\NgramInterface;
+use AndyDefer\LaravelSearch\Contracts\Services\SearchIndexInterface;
+use AndyDefer\LaravelSearch\Contracts\Services\TextNormalizerInterface;
+use AndyDefer\LaravelSearch\Contracts\Services\WordVectorParserInterface;
 use AndyDefer\LaravelSearch\Records\SearchIndexFiltersRecord;
 use AndyDefer\LaravelSearch\Records\SearchIndexRecord;
 use AndyDefer\LaravelSearch\Records\WordVectorRecord;
-use AndyDefer\LaravelSearch\Repositories\SearchIndexRepository;
 use AndyDefer\PhpVo\ValueObjects\Strings\UuidVO;
 use AndyDefer\PhpVo\ValueObjects\Types\StringVO;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Support\Collection;
 
-final class SearchIndexService implements SearchIndexServiceInterface
+final class SearchIndexService implements SearchIndexInterface
 {
     private const DEFAULT_BATCH_SIZE = 100;
 
     public function __construct(
-        private readonly SearchIndexRepository $repository,
-        private readonly TextNormalizerService $normalizer,
-        private readonly NgramService $ngramService,
-        private readonly WordVectorParserService $wordVectorParser,
+        private readonly SearchIndexRepositoryInterface $repository,
+        private readonly TextNormalizerInterface $normalizer,
+        private readonly NgramInterface $ngramService,
+        private readonly WordVectorParserInterface $wordVectorParser,
     ) {}
 
     public function index(Indexable $entity): SearchIndexCollection
@@ -55,24 +58,24 @@ final class SearchIndexService implements SearchIndexServiceInterface
             foreach ($words as $word) {
                 if (! empty($word)) {
                     $normalized = $this->normalizer->normalize($word);
-                    $uniqueLetters = array_unique(str_split($normalized));
+                    $unique_letters = array_unique(str_split($normalized));
                     $metaphone = metaphone($normalized);
 
                     $ngrams = $this->ngramService->generate($normalized)->toArray();
                     $bigrams = array_values(array_filter($ngrams, fn ($g) => strlen($g) === 2));
 
-                    $metaphoneBigrams = [];
+                    $metaphone_bigrams = [];
                     $metaphoneLength = strlen($metaphone);
                     for ($i = 0; $i < $metaphoneLength - 1; $i++) {
-                        $metaphoneBigrams[] = substr($metaphone, $i, 2);
+                        $metaphone_bigrams[] = substr($metaphone, $i, 2);
                     }
 
                     $wordVectors->add(WordVectorRecord::from([
                         'word' => $word,
                         'metaphone' => $metaphone,
-                        'unique_letters' => $uniqueLetters,
+                        'unique_letters' => $unique_letters,
                         'bigrams' => $bigrams,
-                        'metaphone_bigrams' => $metaphoneBigrams,
+                        'metaphone_bigrams' => $metaphone_bigrams,
                     ]));
                 }
             }
