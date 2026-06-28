@@ -95,7 +95,8 @@ class LaravelSearchServiceProvider extends ServiceProvider
                 $app->make(TextNormalizerService::class),
                 $app->make(NgramService::class),
                 $app->make(QueryProcessorService::class),
-                $app->make(WordVectorParserService::class)
+                $app->make(WordVectorParserService::class),
+                $app->make(SearchConfig::class)
             );
         });
 

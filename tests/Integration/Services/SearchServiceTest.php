@@ -12,7 +12,6 @@ use AndyDefer\LaravelSearch\Records\SearchIndexRecord;
 use AndyDefer\LaravelSearch\Records\SearchQueryRecord;
 use AndyDefer\LaravelSearch\Records\SearchResultCollectionRecord;
 use AndyDefer\LaravelSearch\Repositories\SearchIndexRepository;
-use AndyDefer\LaravelSearch\Services\CandidatesFinderService;
 use AndyDefer\LaravelSearch\Services\NgramService;
 use AndyDefer\LaravelSearch\Services\QueryProcessorService;
 use AndyDefer\LaravelSearch\Services\SearchIndexService;
@@ -66,21 +65,7 @@ final class SearchServiceTest extends IntegrationTestCase
             $this->wordVectorParser,
         );
 
-        $candidatesFinder = new CandidatesFinderService(
-            $this->repository,
-            $this->normalizer,
-            $this->ngramService,
-            $this->queryProcessor,
-            $this->wordVectorParser,
-        );
-
-        $this->service = new SearchService(
-            $this->repository,
-            $this->queryProcessor,
-            $this->config,
-            $this->normalizer,
-            $candidatesFinder,
-        );
+        $this->service = $this->app->make(SearchService::class);
     }
 
     public function test_search_returns_empty_result_when_query_empty(): void

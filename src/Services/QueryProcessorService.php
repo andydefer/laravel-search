@@ -20,6 +20,14 @@ use AndyDefer\PhpVo\ValueObjects\Types\StringVO;
 
 final class QueryProcessorService implements QueryProcessorInterface
 {
+    private const DEFAULT_MAX_GRAM_LENGTH = 3;
+
+    private const DEFAULT_MIN_WORD_LENGTH = 2;
+
+    private const DEFAULT_SCORE_DEFAULT_VALUE = 1.0;
+
+    private const DEFAULT_MAX_SCORE_PERCENTAGE = 100.0;
+
     public function __construct(
         private readonly SearchConfigInterface $config,
         private readonly TextNormalizerInterface $normalizer,
@@ -99,7 +107,7 @@ final class QueryProcessorService implements QueryProcessorInterface
                 }
 
                 if ($bestScore > 0 && $bestMaxPossible > 0) {
-                    $percentage = min(round(($bestScore / $bestMaxPossible) * 100, 2), 100.0);
+                    $percentage = min(round(($bestScore / $bestMaxPossible) * self::DEFAULT_MAX_SCORE_PERCENTAGE, 2), self::DEFAULT_MAX_SCORE_PERCENTAGE);
                     $totalPercentage += $percentage;
                     $wordCount++;
                 }
@@ -109,8 +117,8 @@ final class QueryProcessorService implements QueryProcessorInterface
                 $avgPercentage = $totalPercentage / $wordCount;
                 $results->add(MatchResultRecord::from([
                     'search_index' => $data['index'],
-                    'score' => FloatVO::from(1.0),
-                    'max_possible' => FloatVO::from(1.0),
+                    'score' => FloatVO::from(self::DEFAULT_SCORE_DEFAULT_VALUE),
+                    'max_possible' => FloatVO::from(self::DEFAULT_SCORE_DEFAULT_VALUE),
                     'percentage' => FloatVO::from($avgPercentage),
                 ]));
             }
@@ -163,7 +171,7 @@ final class QueryProcessorService implements QueryProcessorInterface
 
         $distance = levenshtein($word1->getValue(), $word2->getValue());
 
-        return min(0.5, $distance / $max_length);
+        return min($this->config->getMaxPenalty(), $distance / $max_length);
     }
 
     /**
@@ -172,16 +180,16 @@ final class QueryProcessorService implements QueryProcessorInterface
     public function calculateMaxScore(string $word): FloatVO
     {
         $length = strlen($word);
-        if ($length < 2) {
-            return FloatVO::from(1.0);
+        if ($length < self::DEFAULT_MIN_WORD_LENGTH) {
+            return FloatVO::from(self::DEFAULT_SCORE_DEFAULT_VALUE);
         }
 
         $maxScore = 0.0;
         for ($i = 0; $i < $length - 1; $i++) {
-            $gramLength = min(3, $length - $i);
+            $gramLength = min(self::DEFAULT_MAX_GRAM_LENGTH, $length - $i);
             $maxScore += $this->config->getGramWeight($gramLength);
         }
 
-        return FloatVO::from(max($maxScore, 1.0));
+        return FloatVO::from(max($maxScore, self::DEFAULT_SCORE_DEFAULT_VALUE));
     }
 }

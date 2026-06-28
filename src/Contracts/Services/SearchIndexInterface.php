@@ -6,6 +6,7 @@ namespace AndyDefer\LaravelSearch\Contracts\Services;
 
 use AndyDefer\LaravelSearch\Collections\SearchIndexCollection;
 use AndyDefer\LaravelSearch\Contracts\Indexable;
+use AndyDefer\LaravelSearch\Records\SyncResultRecord;
 
 interface SearchIndexInterface
 {
@@ -80,5 +81,5 @@ interface SearchIndexInterface
     /**
      * Synchronise les indexes avec les entités
      */
-    public function sync(string $morphClass, int $batchSize = 100): array;
+    public function sync(string $morphClass, int $batchSize = 100): SyncResultRecord;
 }

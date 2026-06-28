@@ -15,8 +15,10 @@ use AndyDefer\LaravelSearch\Contracts\Services\TextNormalizerInterface;
 use AndyDefer\LaravelSearch\Contracts\Services\WordVectorParserInterface;
 use AndyDefer\LaravelSearch\Records\SearchIndexFiltersRecord;
 use AndyDefer\LaravelSearch\Records\SearchIndexRecord;
+use AndyDefer\LaravelSearch\Records\SyncResultRecord;
 use AndyDefer\LaravelSearch\Records\WordVectorRecord;
 use AndyDefer\PhpVo\ValueObjects\Strings\UuidVO;
+use AndyDefer\PhpVo\ValueObjects\Types\FloatVO;
 use AndyDefer\PhpVo\ValueObjects\Types\StringVO;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Model;
@@ -25,6 +27,12 @@ use Illuminate\Support\Collection;
 final class SearchIndexService implements SearchIndexInterface
 {
     private const DEFAULT_BATCH_SIZE = 100;
+
+    private const MIN_WORD_LENGTH = 1;
+
+    private const BIGRAM_LENGTH = 2;
+
+    private const METAPHONE_BIGRAM_OFFSET = 1;
 
     public function __construct(
         private readonly SearchIndexRepositoryInterface $repository,
@@ -56,18 +64,18 @@ final class SearchIndexService implements SearchIndexInterface
             // Créer les WordVectorRecord pour chaque mot
             $wordVectors = new WordVectorCollection;
             foreach ($words as $word) {
-                if (! empty($word)) {
+                if (strlen($word) >= self::MIN_WORD_LENGTH) {
                     $normalized = $this->normalizer->normalize($word);
                     $unique_letters = array_unique(str_split($normalized));
                     $metaphone = metaphone($normalized);
 
                     $ngrams = $this->ngramService->generate($normalized)->toArray();
-                    $bigrams = array_values(array_filter($ngrams, fn ($g) => strlen($g) === 2));
+                    $bigrams = array_values(array_filter($ngrams, fn ($g) => strlen($g) === self::BIGRAM_LENGTH));
 
                     $metaphone_bigrams = [];
                     $metaphoneLength = strlen($metaphone);
-                    for ($i = 0; $i < $metaphoneLength - 1; $i++) {
-                        $metaphone_bigrams[] = substr($metaphone, $i, 2);
+                    for ($i = 0; $i < $metaphoneLength - self::METAPHONE_BIGRAM_OFFSET; $i++) {
+                        $metaphone_bigrams[] = substr($metaphone, $i, self::BIGRAM_LENGTH);
                     }
 
                     $wordVectors->add(WordVectorRecord::from([
@@ -236,11 +244,11 @@ final class SearchIndexService implements SearchIndexInterface
         return $total - $indexed;
     }
 
-    public function sync(string $morphClass, int $batchSize = self::DEFAULT_BATCH_SIZE): array
+    public function sync(string $morphClass, int $batchSize = self::DEFAULT_BATCH_SIZE): SyncResultRecord
     {
-        $indexed = 0;
-        $deleted = 0;
-        $skipped = 0;
+        $indexed = FloatVO::from(0);
+        $deleted = FloatVO::from(0);
+        $skipped = FloatVO::from(0);
 
         $query = $this->getEntitiesQuery($morphClass);
 
@@ -257,10 +265,10 @@ final class SearchIndexService implements SearchIndexInterface
 
                     if ($existing > 0) {
                         $this->reindex($entity);
-                        $indexed++;
+                        $indexed = $indexed->increment();
                     } else {
                         $this->index($entity);
-                        $indexed++;
+                        $indexed = $indexed->increment();
                     }
                 } else {
                     $filters = new SearchIndexFiltersRecord(
@@ -270,20 +278,20 @@ final class SearchIndexService implements SearchIndexInterface
 
                     $count = $this->repository->deleteBulk($filters);
                     if ($count > 0) {
-                        $deleted++;
+                        $deleted = $deleted->increment();
                     } else {
-                        $skipped++;
+                        $skipped = $skipped->increment();
                     }
                 }
             }
         });
 
-        return [
-            'indexed' => $indexed,
-            'deleted' => $deleted,
-            'skipped' => $skipped,
-            'total' => $indexed + $deleted + $skipped,
-        ];
+        return new SyncResultRecord(
+            indexed: $indexed->toInt(),
+            deleted: $deleted->toInt(),
+            skipped: $skipped->toInt(),
+            total: $indexed->add($deleted)->add($skipped)->toInt(),
+        );
     }
 
     private function generateNgramsFromWords(array $words): StringTypedCollection

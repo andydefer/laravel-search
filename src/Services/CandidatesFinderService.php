@@ -8,6 +8,7 @@ use AndyDefer\DomainStructures\Collections\Utility\StringTypedCollection;
 use AndyDefer\LaravelSearch\Collections\ItemWordsCollection;
 use AndyDefer\LaravelSearch\Collections\SearchIndexCollection;
 use AndyDefer\LaravelSearch\Collections\WordVectorCollection;
+use AndyDefer\LaravelSearch\Contracts\Configs\SearchConfigInterface;
 use AndyDefer\LaravelSearch\Contracts\Repositories\SearchIndexRepositoryInterface;
 use AndyDefer\LaravelSearch\Contracts\Services\CandidatesFinderInterface;
 use AndyDefer\LaravelSearch\Contracts\Services\NgramInterface;
@@ -21,16 +22,13 @@ use AndyDefer\LaravelSearch\ValueObjects\SearchCandidatesVO;
 
 final class CandidatesFinderService implements CandidatesFinderInterface
 {
-    private const MAX_CANDIDATES_AFTER_FILTER = 100;
-
-    private const MIN_COMMON_BIGRAMS = 2;
-
     public function __construct(
         private readonly SearchIndexRepositoryInterface $repository,
         private readonly TextNormalizerInterface $normalizer,
         private readonly NgramInterface $ngramService,
         private readonly QueryProcessorInterface $queryProcessor,
         private readonly WordVectorParserInterface $wordVectorParser,
+        private readonly SearchConfigInterface $config,
     ) {}
 
     public function findCandidates(SearchQueryRecord $query): ItemWordsCollection
@@ -57,15 +55,15 @@ final class CandidatesFinderService implements CandidatesFinderInterface
         $searchIndexRecords = $this->repository->findCandidatesBySimilarity(
             $candidatesVO,
             $queryWordVectors,
-            self::MIN_COMMON_BIGRAMS
+            $this->config->getMinCommonBigrams()
         );
 
         // Phase 2: Filtrage intelligent par similarité
         $filteredIndexes = $this->filterBySimilarity($searchIndexRecords, $queryWordVectors);
 
         // Phase 3: Si trop de candidats, garder les plus pertinents
-        if ($filteredIndexes->count() > self::MAX_CANDIDATES_AFTER_FILTER) {
-            $filteredIndexes = $this->selectBestCandidates($filteredIndexes, $queryWordVectors, self::MAX_CANDIDATES_AFTER_FILTER);
+        if ($filteredIndexes->count() > $this->config->getMaxCandidatesAfterFilter()) {
+            $filteredIndexes = $this->selectBestCandidates($filteredIndexes, $queryWordVectors, $this->config->getMaxCandidatesAfterFilter());
         }
 
         // Phase 4: Convertir en ItemWordsCollection
@@ -81,7 +79,7 @@ final class CandidatesFinderService implements CandidatesFinderInterface
             $itemVectors = $record->item_words;
             $score = $this->calculateSimilarityScore($itemVectors, $queryVectors);
 
-            if ($score >= self::MIN_COMMON_BIGRAMS) {
+            if ($score >= $this->config->getMinCommonBigrams()) {
                 $filtered->add($record);
             }
         }

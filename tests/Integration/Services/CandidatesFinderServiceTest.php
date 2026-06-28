@@ -46,13 +46,7 @@ final class CandidatesFinderServiceTest extends IntegrationTestCase
         $this->config = $this->app->make(SearchConfig::class);
         $this->repository = new SearchIndexRepository($this->ngramService, $this->wordVectorParser, $this->config);
 
-        $this->service = new CandidatesFinderService(
-            $this->repository,
-            $this->normalizer,
-            $this->ngramService,
-            $this->queryProcessor,
-            $this->wordVectorParser,
-        );
+        $this->service = $this->app->make(CandidatesFinderService::class);
     }
 
     private function countUniqueIndexes(ItemWordsCollection $collection): int

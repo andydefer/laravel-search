@@ -383,9 +383,9 @@ final class SearchIndexServiceTest extends IntegrationTestCase
 
         $result = $this->service->sync(TestUser::class);
 
-        $this->assertEquals(2, $result['indexed']);
-        $this->assertEquals(0, $result['deleted']);
-        $this->assertEquals(1, $result['skipped']);
+        $this->assertEquals(2, $result->indexed);
+        $this->assertEquals(0, $result->deleted);
+        $this->assertEquals(1, $result->skipped);
 
         $filters = SearchIndexFiltersRecord::from([
             'searchable_type' => StringVO::from(TestUser::class),
@@ -409,9 +409,9 @@ final class SearchIndexServiceTest extends IntegrationTestCase
 
         $result = $this->service->sync(TestUser::class);
 
-        $this->assertEquals(0, $result['indexed']);
-        $this->assertEquals(1, $result['deleted']);
-        $this->assertEquals(0, $result['skipped']);
+        $this->assertEquals(0, $result->indexed);
+        $this->assertEquals(1, $result->deleted);
+        $this->assertEquals(0, $result->skipped);
 
         $filters = SearchIndexFiltersRecord::from([
             'searchable_type' => StringVO::from(TestUser::class),

@@ -28,6 +28,10 @@ final class SearchConfig implements SearchConfigInterface
 
     private const DEFAULT_MAX_PENALTY = 0.5;
 
+    private const DEFAULT_MAX_CANDIDATES_AFTER_FILTER = 100;
+
+    private const DEFAULT_MIN_COMMON_BIGRAMS = 2;
+
     public function __construct(
         private readonly ConfigRepository $config,
     ) {}
@@ -82,5 +86,15 @@ final class SearchConfig implements SearchConfigInterface
     public function getGramWeights(): array
     {
         return $this->config->get('search.gram_weights', self::DEFAULT_GRAM_WEIGHTS);
+    }
+
+    public function getMaxCandidatesAfterFilter(): int
+    {
+        return $this->config->get('search.max_candidates_after_filter', self::DEFAULT_MAX_CANDIDATES_AFTER_FILTER);
+    }
+
+    public function getMinCommonBigrams(): int
+    {
+        return $this->config->get('search.min_common_bigrams', self::DEFAULT_MIN_COMMON_BIGRAMS);
     }
 }

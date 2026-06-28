@@ -25,4 +25,8 @@ interface SearchConfigInterface
     public function isStopWord(string $word): bool;
 
     public function getGramWeights(): array;
+
+    public function getMaxCandidatesAfterFilter(): int;
+
+    public function getMinCommonBigrams(): int;
 }
