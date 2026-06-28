@@ -9,12 +9,12 @@ use AndyDefer\DomainStructures\Utils\Sequential;
 use AndyDefer\PhpVo\ValueObjects\Types\FloatVO;
 use AndyDefer\PhpVo\ValueObjects\Types\StringVO;
 
-final class ProcessedWordRecord extends AbstractRecord
+final class ItemWordRecord extends AbstractRecord
 {
     public function __construct(
-        public readonly StringVO $original,
         public readonly StringVO $normalized,
         public readonly Sequential $ngrams,
-        public readonly ?FloatVO $max_score = null,
+        public readonly FloatVO $max_score,
+        public readonly ?SearchIndexRecord $search_index = null,
     ) {}
 }

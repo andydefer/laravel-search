@@ -2,19 +2,24 @@
 
 declare(strict_types=1);
 
-namespace AndyDefer\LaravelSearch\Tests\Unit\Services;
+namespace AndyDefer\LaravelSearch\Tests\Integration\Services;
 
+use AndyDefer\LaravelSearch\Configs\SearchConfig;
 use AndyDefer\LaravelSearch\Services\TextNormalizerService;
-use PHPUnit\Framework\TestCase;
+use AndyDefer\LaravelSearch\Tests\IntegrationTestCase;
+use Illuminate\Contracts\Config\Repository as ConfigRepository;
 
-final class TextNormalizerServiceTest extends TestCase
+final class TextNormalizerServiceTest extends IntegrationTestCase
 {
     private TextNormalizerService $normalizer;
 
     protected function setUp(): void
     {
         parent::setUp();
-        $this->normalizer = new TextNormalizerService;
+
+        $configRepository = app(ConfigRepository::class);
+        $config = new SearchConfig($configRepository);
+        $this->normalizer = new TextNormalizerService($config);
     }
 
     // ============================================================
@@ -42,7 +47,7 @@ final class TextNormalizerServiceTest extends TestCase
     public function test_normalize_french_accents(): void
     {
         $result = $this->normalizer->normalize('J\'ai mangé un croissant à Paris');
-        $this->assertStringContainsString('j ai mange un croissant a paris', $result);
+        $this->assertStringContainsString("j'ai mange un croissant a paris", $result);
     }
 
     public function test_normalize_spanish_accents(): void
@@ -82,6 +87,40 @@ final class TextNormalizerServiceTest extends TestCase
     }
 
     // ============================================================
+    // TESTS DE NORMALISATION DES TIRETS
+    // ============================================================
+
+    public function test_normalize_hyphens_to_spaces(): void
+    {
+        $result = $this->normalizer->normalize('Jean-Pierre');
+        $this->assertSame('jean pierre', $result);
+    }
+
+    public function test_normalize_multiple_hyphens(): void
+    {
+        $result = $this->normalizer->normalize('Saint-Louis-du-Ha! Ha!');
+        $this->assertStringContainsString('saint louis du ha ha', $result);
+    }
+
+    public function test_normalize_hyphens_with_accents(): void
+    {
+        $result = $this->normalizer->normalize('Montréal-Nord');
+        $this->assertSame('montreal nord', $result);
+    }
+
+    public function test_normalize_hyphens_with_numbers(): void
+    {
+        $result = $this->normalizer->normalize('Version-2.0');
+        $this->assertSame('version 2 0', $result);
+    }
+
+    public function test_normalize_complex_hyphen_words(): void
+    {
+        $result = $this->normalizer->normalize('Jean-Claude Van-Damme');
+        $this->assertSame('jean claude van damme', $result);
+    }
+
+    // ============================================================
     // TESTS D'EXTRACTION DE MOTS
     // ============================================================
 
@@ -113,6 +152,19 @@ final class TextNormalizerServiceTest extends TestCase
     {
         $result = $this->normalizer->extractWords('');
         $this->assertSame([], $result);
+    }
+
+    public function test_extract_words_with_hyphens(): void
+    {
+        $result = $this->normalizer->extractWords('Jean-Pierre a un chien-loup');
+        $this->assertContains('jean', $result);
+        $this->assertContains('pierre', $result);
+        $this->assertContains('a', $result);
+        $this->assertContains('un', $result);
+        $this->assertContains('chien', $result);
+        $this->assertContains('loup', $result);
+        $this->assertNotContains('jean-pierre', $result);
+        $this->assertNotContains('chien-loup', $result);
     }
 
     // ============================================================
@@ -263,8 +315,7 @@ final class TextNormalizerServiceTest extends TestCase
     {
         $text = 'Le site de la ville de Mont-Saint-Michel est magnifique !';
         $result = $this->normalizer->normalize($text);
-        // Les tirets sont conservés dans les mots composés
-        $this->assertStringContainsString('le site de la ville de mont-saint-michel est magnifique', $result);
+        $this->assertStringContainsString('le site de la ville de mont saint michel est magnifique', $result);
     }
 
     public function test_normalize_scientific_text(): void
@@ -333,22 +384,71 @@ final class TextNormalizerServiceTest extends TestCase
     }
 
     // ============================================================
-    // NOUVEAUX TESTS POUR LES MÉTHODES AJOUTÉES
+    // TESTS POUR LES ARTICLES ÉLIDÉS
     // ============================================================
+
+    public function test_normalize_remove_elided_articles(): void
+    {
+        $result = $this->normalizer->normalize("L'éléphant est dans l'arbre");
+        $this->assertStringContainsString('elephant est dans arbre', $result);
+    }
+
+    public function test_normalize_keep_j_ai(): void
+    {
+        $result = $this->normalizer->normalize("j'ai mangé c'est bon");
+        $this->assertStringContainsString("j'ai mange c'est bon", $result);
+    }
+
+    public function test_normalize_mixed_with_articles(): void
+    {
+        $result = $this->normalizer->normalize("L'éléphant a mangé j'ai vu qu'il était là");
+        $this->assertStringContainsString("elephant a mange j'ai vu qu'il etait la", $result);
+    }
+
+    public function test_normalize_remove_multiple_articles(): void
+    {
+        $result = $this->normalizer->normalize("L'éléphant d'arbre m'appelle t'as vu c'est bon");
+        $this->assertStringContainsString("elephant arbre m'appelle t'as vu c'est bon", $result);
+    }
+
+    public function test_extract_words_with_articles(): void
+    {
+        $result = $this->normalizer->extractWords("L'éléphant c'est un animal");
+        $this->assertContains('elephant', $result);
+        $this->assertContains("c'est", $result);
+        $this->assertNotContains("l'elephant", $result);
+    }
+
+    public function test_remove_elided_articles(): void
+    {
+        $result = $this->normalizer->removeElidedArticles("L'éléphant d'arbre m'appelle");
+        $this->assertStringContainsString("éléphant arbre m'appelle", $result);
+    }
+
+    public function test_remove_elided_articles_keep_j_ai(): void
+    {
+        $result = $this->normalizer->removeElidedArticles("j'ai mangé c'est bon");
+        $this->assertStringContainsString("j'ai mangé c'est bon", $result);
+    }
+
+    public function test_remove_elided_articles_case_insensitive(): void
+    {
+        $result = $this->normalizer->removeElidedArticles("L'Éléphant D'Arbre");
+        $this->assertStringContainsString('Éléphant Arbre', $result);
+    }
 
     public function test_normalize_apostrophes(): void
     {
-        // normalizeApostrophes ne supprime pas les accents
-        // On doit utiliser normalize() pour avoir le résultat final
         $result = $this->normalizer->normalize("L'éléphant c'est un animal");
-        $this->assertSame("l'elephant c'est un animal", $result);
+        $this->assertSame("elephant c'est un animal", $result);
     }
 
     public function test_normalize_curly_apostrophes(): void
     {
-        // Les apostrophes courbes sont normalisées, puis les accents sont supprimés
-        $result = $this->normalizer->normalize('L’éléphant c‘est un animal');
-        $this->assertSame("l'elephant c'est un animal", $result);
+        $text = 'L’éléphant c‘est un animal';
+        $normalized = $this->normalizer->normalizeApostrophes($text);
+        $result = $this->normalizer->normalize($normalized);
+        $this->assertSame("elephant c'est un animal", $result);
     }
 
     public function test_clean_non_printable_characters(): void
@@ -369,39 +469,30 @@ final class TextNormalizerServiceTest extends TestCase
     public function test_normalize_with_apostrophe_preservation(): void
     {
         $result = $this->normalizer->normalize("L'éléphant est dans l'arbre");
-        // L'apostrophe est conservée, les accents sont supprimés
-        $this->assertStringContainsString("l'elephant est dans l'arbre", $result);
+        $this->assertStringContainsString('elephant est dans arbre', $result);
     }
 
     public function test_normalize_with_hyphen_preservation(): void
     {
         $result = $this->normalizer->normalize('Jean-Pierre a un chien-loup');
-        // Les tirets sont conservés
-        $this->assertStringContainsString('jean-pierre a un chien-loup', $result);
-    }
-
-    public function test_extract_words_with_apostrophe(): void
-    {
-        $result = $this->normalizer->extractWords("L'éléphant c'est un animal");
-        // Les mots avec apostrophe sont conservés comme un seul mot
-        $this->assertContains("l'elephant", $result);
-        $this->assertContains("c'est", $result);
+        $this->assertStringContainsString('jean pierre a un chien loup', $result);
     }
 
     public function test_extract_words_with_hyphen(): void
     {
         $result = $this->normalizer->extractWords('Jean-Pierre a un chien-loup');
-        // Les mots avec tiret sont conservés comme un seul mot
-        $this->assertContains('jean-pierre', $result);
-        $this->assertContains('chien-loup', $result);
+        $this->assertContains('jean', $result);
+        $this->assertContains('pierre', $result);
+        $this->assertContains('a', $result);
+        $this->assertContains('un', $result);
+        $this->assertContains('chien', $result);
+        $this->assertContains('loup', $result);
     }
 
     public function test_normalize_apostrophes_method_only(): void
     {
-        // Test de la méthode normalizeApostrophes seule (sans normalize)
         $text = 'L’éléphant c‘est un animal';
         $result = $this->normalizer->normalizeApostrophes($text);
-        // Les apostrophes sont normalisées mais les accents restent
         $this->assertSame("L'éléphant c'est un animal", $result);
     }
 }

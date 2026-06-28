@@ -5,14 +5,12 @@ declare(strict_types=1);
 namespace AndyDefer\LaravelSearch\Repositories;
 
 use AndyDefer\DomainStructures\Abstracts\AbstractRecord;
+use AndyDefer\DomainStructures\Utils\Sequential;
 use AndyDefer\LaravelSearch\Models\SearchIndex;
 use AndyDefer\LaravelSearch\Records\SearchIndexFiltersRecord;
 use AndyDefer\LaravelSearch\Records\SearchIndexRecord;
-use AndyDefer\LaravelSearch\Records\SearchResultRecord;
-use AndyDefer\LaravelSearch\Services\QueryProcessorService;
-use AndyDefer\LaravelSearch\Services\TextNormalizerService;
-use AndyDefer\LaravelSearch\ValueObjects\ItemWordsVO;
-use AndyDefer\LaravelSearch\ValueObjects\NgramsVO;
+use AndyDefer\LaravelSearch\Services\NgramService;
+use AndyDefer\LaravelSearch\ValueObjects\SearchCandidatesVO;
 use AndyDefer\PhpVo\ValueObjects\Types\StringVO;
 use AndyDefer\Repository\AbstractRepository;
 use AndyDefer\Repository\Records\FindByRecord;
@@ -20,16 +18,13 @@ use AndyDefer\Repository\ValueObjects\SelectColumns;
 use AndyDefer\Repository\ValueObjects\SortColumns;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Support\Collection;
-use Illuminate\Support\Str;
 
 final class SearchIndexRepository extends AbstractRepository
 {
-    private QueryProcessorService $query_processor;
-
-    public function __construct()
-    {
+    public function __construct(
+        private readonly NgramService $ngramService,
+    ) {
         parent::__construct(SearchIndex::class, SearchIndexRecord::class);
-        $this->query_processor = new QueryProcessorService(new TextNormalizerService);
     }
 
     protected function applyFilters(Builder $query, AbstractRecord $filters): void
@@ -58,6 +53,10 @@ final class SearchIndexRepository extends AbstractRepository
             $query->where('original_text', 'like', '%'.$filters->original_text->getValue().'%');
         }
 
+        if ($filters->normalized_text !== null) {
+            $query->where('normalized_text', 'like', '%'.$filters->normalized_text->getValue().'%');
+        }
+
         if ($filters->item_words !== null) {
             foreach ($filters->item_words->toArray() as $word) {
                 $query->whereJsonContains('item_words', $word);
@@ -71,244 +70,150 @@ final class SearchIndexRepository extends AbstractRepository
         }
     }
 
-    public function generate_uuid(): string
-    {
-        return (string) Str::uuid();
-    }
-
-    // ========== RECHERCHES ==========
+    // ============================================================
+    // MÉTHODES DE RECHERCHE DE BASE
+    // ============================================================
 
     public function findByWord(StringVO $word): Collection
     {
-        $item_words = new ItemWordsVO($word->getValue());
+        $filters = SearchIndexFiltersRecord::from([
+            'item_words' => Sequential::from([$word->getValue()]),
+        ]);
 
-        $filters = new SearchIndexFiltersRecord(
-            item_words: $item_words
-        );
-
-        $findBy = new FindByRecord(
-            filters: $filters
-        );
+        $findBy = FindByRecord::from([
+            'filters' => $filters,
+        ]);
 
         return $this->findBy($findBy);
     }
 
     public function findByWordWithSort(
         StringVO $word,
-        string $sort = 'created_at:desc',
+        SortColumns $sort,
         int $limit = 10,
-        array $columns = ['id', 'original_text', 'source_column', 'created_at']
+        ?SelectColumns $columns = null
     ): Collection {
-        $item_words = new ItemWordsVO($word->getValue());
+        $filters = SearchIndexFiltersRecord::from([
+            'item_words' => Sequential::from([$word->getValue()]),
+        ]);
 
-        $filters = new SearchIndexFiltersRecord(
-            item_words: $item_words
-        );
-
-        $findBy = new FindByRecord(
-            filters: $filters,
-            limit: $limit,
-            sortBy: new SortColumns($sort),
-            columns: new SelectColumns($columns)
-        );
+        $findBy = FindByRecord::from([
+            'filters' => $filters,
+            'limit' => $limit,
+            'sortBy' => $sort,
+            'columns' => $columns ?? SelectColumns::from(['id', 'original_text', 'source_column', 'created_at']),
+        ]);
 
         return $this->findBy($findBy);
     }
 
     public function findByNgram(StringVO $ngram): Collection
     {
-        $ngrams_vo = new NgramsVO($ngram->getValue());
+        $ngrams = Sequential::from($this->ngramService->generate($ngram->getValue())->toArray());
 
-        $filters = new SearchIndexFiltersRecord(
-            ngrams: $ngrams_vo
-        );
+        $filters = SearchIndexFiltersRecord::from([
+            'ngrams' => $ngrams,
+        ]);
 
-        $findBy = new FindByRecord(
-            filters: $filters
-        );
+        $findBy = FindByRecord::from([
+            'filters' => $filters,
+        ]);
 
         return $this->findBy($findBy);
     }
 
     public function findByNgramWithSort(
         StringVO $ngram,
-        string $sort = 'created_at:desc|original_text:asc',
+        SortColumns $sort,
         int $limit = 10
     ): Collection {
-        $ngrams_vo = new NgramsVO($ngram->getValue());
+        $ngrams = Sequential::from($this->ngramService->generate($ngram->getValue())->toArray());
 
-        $filters = new SearchIndexFiltersRecord(
-            ngrams: $ngrams_vo
-        );
+        $filters = SearchIndexFiltersRecord::from([
+            'ngrams' => $ngrams,
+        ]);
 
-        $findBy = new FindByRecord(
-            filters: $filters,
-            limit: $limit,
-            sortBy: new SortColumns($sort),
-            columns: SelectColumns::all()
-        );
-
-        return $this->findBy($findBy);
-    }
-
-    public function findByNgramsVO(NgramsVO $ngrams): Collection
-    {
-        $filters = new SearchIndexFiltersRecord(
-            ngrams: $ngrams
-        );
-
-        $findBy = new FindByRecord(
-            filters: $filters
-        );
+        $findBy = FindByRecord::from([
+            'filters' => $filters,
+            'limit' => $limit,
+            'sortBy' => $sort,
+            'columns' => SelectColumns::all(),
+        ]);
 
         return $this->findBy($findBy);
-    }
-
-    /**
-     * Recherche les indexes correspondant à une liste de n-grams
-     * Compatible SQLite, MySQL, PostgreSQL
-     */
-    public function findByNgramsList(array|NgramsVO $ngrams): Collection
-    {
-        if ($ngrams instanceof NgramsVO) {
-            $ngrams = $ngrams->toArray();
-        }
-
-        if (empty($ngrams)) {
-            return new Collection;
-        }
-
-        $ngrams = array_unique(array_filter($ngrams, function ($ngram) {
-            return is_string($ngram) && strlen(trim($ngram)) >= 2;
-        }));
-
-        if (empty($ngrams)) {
-            return new Collection;
-        }
-
-        $query = $this->model->newQuery();
-
-        $query->where(function ($q) use ($ngrams) {
-            foreach ($ngrams as $ngram) {
-                $q->orWhereJsonContains('ngrams', $ngram);
-            }
-        });
-
-        $query->limit(1000);
-        $query->orderBy('created_at', 'desc');
-
-        return $query->get();
-    }
-
-    /**
-     * Recherche par liste de n-grams avec tri et limite
-     */
-    public function findByNgramsListWithSort(
-        array|NgramsVO $ngrams,
-        string $sort = 'created_at:desc',
-        int $limit = 50
-    ): Collection {
-        if ($ngrams instanceof NgramsVO) {
-            $ngrams = $ngrams->toArray();
-        }
-
-        if (empty($ngrams)) {
-            return new Collection;
-        }
-
-        $ngrams = array_unique(array_filter($ngrams, function ($ngram) {
-            return is_string($ngram) && strlen(trim($ngram)) >= 2;
-        }));
-
-        if (empty($ngrams)) {
-            return new Collection;
-        }
-
-        $query = $this->model->newQuery();
-
-        $query->where(function ($q) use ($ngrams) {
-            foreach ($ngrams as $ngram) {
-                $q->orWhereJsonContains('ngrams', $ngram);
-            }
-        });
-
-        $this->applySort($query, $sort);
-        $query->limit($limit);
-
-        return $query->get();
     }
 
     public function findByWordForNgrams(StringVO $word): Collection
     {
-        $ngrams_vo = new NgramsVO($word->getValue());
+        $ngrams = Sequential::from($this->ngramService->generate($word->getValue())->toArray());
 
-        $filters = new SearchIndexFiltersRecord(
-            ngrams: $ngrams_vo
-        );
+        $filters = SearchIndexFiltersRecord::from([
+            'ngrams' => $ngrams,
+        ]);
 
-        $findBy = new FindByRecord(
-            filters: $filters
-        );
+        $findBy = FindByRecord::from([
+            'filters' => $filters,
+        ]);
 
         return $this->findBy($findBy);
     }
 
     public function findBySource(StringVO $sourceType, ?StringVO $sourceId = null): Collection
     {
-        $filters = new SearchIndexFiltersRecord(
-            searchable_type: $sourceType
-        );
+        $filters = SearchIndexFiltersRecord::from([
+            'searchable_type' => $sourceType,
+        ]);
 
         if ($sourceId !== null) {
-            $filters = new SearchIndexFiltersRecord(
-                searchable_type: $sourceType,
-                searchable_id: $sourceId
-            );
+            $filters = SearchIndexFiltersRecord::from([
+                'searchable_type' => $sourceType,
+                'searchable_id' => $sourceId,
+            ]);
         }
 
-        $findBy = new FindByRecord(
-            filters: $filters
-        );
+        $findBy = FindByRecord::from([
+            'filters' => $filters,
+        ]);
 
         return $this->findBy($findBy);
     }
 
     public function findBySourceWithSort(
         StringVO $sourceType,
+        SortColumns $sort,
         ?StringVO $sourceId = null,
-        string $sort = 'created_at:desc',
         int $limit = 10
     ): Collection {
-        $filters = new SearchIndexFiltersRecord(
-            searchable_type: $sourceType
-        );
+        $filters = SearchIndexFiltersRecord::from([
+            'searchable_type' => $sourceType,
+        ]);
 
         if ($sourceId !== null) {
-            $filters = new SearchIndexFiltersRecord(
-                searchable_type: $sourceType,
-                searchable_id: $sourceId
-            );
+            $filters = SearchIndexFiltersRecord::from([
+                'searchable_type' => $sourceType,
+                'searchable_id' => $sourceId,
+            ]);
         }
 
-        $findBy = new FindByRecord(
-            filters: $filters,
-            limit: $limit,
-            sortBy: new SortColumns($sort),
-            columns: new SelectColumns(['id', 'searchable_type', 'searchable_id', 'original_text', 'created_at'])
-        );
+        $findBy = FindByRecord::from([
+            'filters' => $filters,
+            'limit' => $limit,
+            'sortBy' => $sort,
+            'columns' => SelectColumns::from(['id', 'searchable_type', 'searchable_id', 'original_text', 'created_at']),
+        ]);
 
         return $this->findBy($findBy);
     }
 
     public function findByText(StringVO $text): Collection
     {
-        $filters = new SearchIndexFiltersRecord(
-            original_text: $text
-        );
+        $filters = SearchIndexFiltersRecord::from([
+            'original_text' => $text,
+        ]);
 
-        $findBy = new FindByRecord(
-            filters: $filters
-        );
+        $findBy = FindByRecord::from([
+            'filters' => $filters,
+        ]);
 
         return $this->findBy($findBy);
     }
@@ -318,124 +223,137 @@ final class SearchIndexRepository extends AbstractRepository
         StringVO $sourceType,
         ?StringVO $sourceId = null
     ): Collection {
-        $item_words = new ItemWordsVO($word->getValue());
+        $filters = SearchIndexFiltersRecord::from([
+            'searchable_type' => $sourceType,
+            'searchable_id' => $sourceId,
+            'item_words' => Sequential::from([$word->getValue()]),
+        ]);
 
-        $filters = new SearchIndexFiltersRecord(
-            searchable_type: $sourceType,
-            searchable_id: $sourceId,
-            item_words: $item_words
-        );
-
-        $findBy = new FindByRecord(
-            filters: $filters
-        );
+        $findBy = FindByRecord::from([
+            'filters' => $filters,
+        ]);
 
         return $this->findBy($findBy);
     }
 
     public function findByWithMultipleSort(
         StringVO $word,
-        string $sort = 'source_column:asc|created_at:desc',
+        SortColumns $sort,
         int $limit = 20,
-        array $columns = ['id', 'original_text', 'source_column', 'created_at']
+        ?SelectColumns $columns = null
     ): Collection {
-        $item_words = new ItemWordsVO($word->getValue());
+        $filters = SearchIndexFiltersRecord::from([
+            'item_words' => Sequential::from([$word->getValue()]),
+        ]);
 
-        $filters = new SearchIndexFiltersRecord(
-            item_words: $item_words
-        );
-
-        $findBy = new FindByRecord(
-            filters: $filters,
-            limit: $limit,
-            sortBy: new SortColumns($sort),
-            columns: new SelectColumns($columns)
-        );
+        $findBy = FindByRecord::from([
+            'filters' => $filters,
+            'limit' => $limit,
+            'sortBy' => $sort,
+            'columns' => $columns ?? SelectColumns::from(['id', 'original_text', 'source_column', 'created_at']),
+        ]);
 
         return $this->findBy($findBy);
     }
 
-    public function findAllWithSort(string $sort = 'created_at:desc', int $limit = 100): Collection
+    public function findAllWithSort(SortColumns $sort, int $limit = 100): Collection
     {
         $filters = new SearchIndexFiltersRecord;
 
-        $findBy = new FindByRecord(
-            filters: $filters,
-            limit: $limit,
-            sortBy: new SortColumns($sort),
-            columns: SelectColumns::all()
-        );
+        $findBy = FindByRecord::from([
+            'filters' => $filters,
+            'limit' => $limit,
+            'sortBy' => $sort,
+            'columns' => SelectColumns::all(),
+        ]);
 
         return $this->findBy($findBy);
     }
 
-    // ========== RECHERCHE AVEC SCORE ==========
+    public function countByFilters(SearchIndexFiltersRecord $filters): int
+    {
+        $query = $this->model->newQuery();
+        $this->applyFilters($query, $filters);
+
+        return $query->count();
+    }
+
+    public function countDistinctEntities(string $morphClass): int
+    {
+        return $this->model->newQuery()
+            ->where('searchable_type', $morphClass)
+            ->distinct('searchable_id')
+            ->count('searchable_id');
+    }
+
+    // ============================================================
+    // MÉTHODES POUR RÉCUPÉRER DES CANDIDATS AVEC SearchCandidatesVO
+    // ============================================================
 
     /**
-     * Recherche avec calcul de score - Version optimisée
+     * Trouve les candidats à partir d'un SearchCandidatesVO
+     *
+     * @return Collection<SearchIndex>
      */
-    public function searchWithScore(string $query, int $limit = 10): array
+    public function findCandidates(SearchCandidatesVO $candidates): Collection
     {
-        $query_words = $this->query_processor->process($query);
+        $words = $candidates->getWords();
+        $ngrams = $candidates->getNgrams();
+        $filters = $candidates->getFilters();
+        $limit = $candidates->getLimit();
 
-        if (empty($query_words)) {
-            return [];
+        $wordArray = $words->toArray();
+        $ngramArray = $ngrams->toArray();
+
+        $hasWords = ! empty($wordArray);
+        $hasNgrams = ! empty($ngramArray);
+
+        if (! $hasWords && ! $hasNgrams) {
+            return new Collection;
         }
 
-        $query_ngrams = [];
-        foreach ($query_words as $word) {
-            $query_ngrams = array_merge($query_ngrams, $word->ngrams->toArray());
-        }
-        $query_ngrams = array_unique($query_ngrams);
+        $query = $this->model->newQuery();
 
-        $candidates = $this->findByNgramsList($query_ngrams);
+        // Appliquer les filtres
+        $this->applyFilters($query, $filters);
 
-        if ($candidates->isEmpty()) {
-            return [];
-        }
-
-        $results = [];
-
-        foreach ($candidates as $index) {
-            $item_words = $index->getItemWords()->toArray();
-            $score = $this->query_processor->compute_score($query_words, $item_words);
-
-            if ($score !== null && $score->percentage > 0) {
-                $results[] = new SearchResultRecord(
-                    index: $index->toRecord(),
-                    score: $score->score,
-                    max_possible: $score->max_possible,
-                    percentage: $score->percentage,
-                );
+        $query->where(function ($q) use ($wordArray, $ngramArray, $hasWords, $hasNgrams) {
+            // Recherche par n-grams
+            if ($hasNgrams) {
+                $q->where(function ($subQ) use ($ngramArray) {
+                    foreach ($ngramArray as $ngram) {
+                        if (is_string($ngram) && strlen(trim($ngram)) >= 2) {
+                            $subQ->orWhereJsonContains('ngrams', $ngram);
+                        }
+                    }
+                });
             }
-        }
 
-        return $this->query_processor->sort_results($results);
-    }
+            // Recherche par mots (OR avec les n-grams)
+            if ($hasWords) {
+                $wordsFiltered = array_filter($wordArray, function ($word) {
+                    return is_string($word) && strlen(trim($word)) >= 2;
+                });
 
-    public function searchWithScoreAndLimit(string $query, int $limit = 10, float $min_percentage = 20): array
-    {
-        $results = $this->searchWithScore($query);
+                if (! empty($wordsFiltered)) {
+                    $wordQuery = function ($subQ) use ($wordsFiltered) {
+                        foreach ($wordsFiltered as $word) {
+                            $subQ->orWhereJsonContains('item_words', $word);
+                        }
+                    };
 
-        $filtered = array_filter($results, function (SearchResultRecord $result) use ($min_percentage) {
-            return $result->percentage >= $min_percentage;
+                    if ($hasNgrams) {
+                        $q->orWhere($wordQuery);
+                    } else {
+                        $q->where($wordQuery);
+                    }
+                }
+            }
         });
 
-        return array_slice($filtered, 0, $limit);
-    }
+        $query->limit($limit);
+        $query->orderBy('created_at', 'desc');
 
-    // ========== MÉTHODES UTILITAIRES ==========
-
-    private function applySort(Builder $query, string $sort): void
-    {
-        if (empty($sort)) {
-            return;
-        }
-
-        $sortParts = explode('|', $sort);
-        foreach ($sortParts as $part) {
-            [$column, $direction] = explode(':', $part) + [1 => 'asc'];
-            $query->orderBy($column, $direction);
-        }
+        return $query->get();
     }
 }

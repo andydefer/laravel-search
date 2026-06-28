@@ -8,48 +8,33 @@ use AndyDefer\LaravelSearch\Configs\SearchConfig;
 
 final class TextNormalizerService
 {
-    private SearchConfig $config;
-
     /**
-     * Table de correspondance des caractères accentués et spéciaux
+     * UNIQUEMENT les articles élidés l' et d'
+     * PAS j', c', t', m', n', qu' (ce sont des pronoms/verbes)
      */
+    private const ELIDED_ARTICLES = [
+        "l'", "L'",
+        "d'", "D'",
+    ];
+
     private const DIACRITICS = [
-        // Accents latins - lettre A
         'À' => 'A', 'Á' => 'A', 'Â' => 'A', 'Ã' => 'A', 'Ä' => 'A', 'Å' => 'A',
         'à' => 'a', 'á' => 'a', 'â' => 'a', 'ã' => 'a', 'ä' => 'a', 'å' => 'a',
         'Ǻ' => 'A', 'ǻ' => 'a',
-
-        // Accents latins - lettre C
         'Ç' => 'C', 'ç' => 'c',
-
-        // Accents latins - lettre E
         'È' => 'E', 'É' => 'E', 'Ê' => 'E', 'Ë' => 'E',
         'è' => 'e', 'é' => 'e', 'ê' => 'e', 'ë' => 'e',
-
-        // Accents latins - lettre I
         'Ì' => 'I', 'Í' => 'I', 'Î' => 'I', 'Ï' => 'I',
         'ì' => 'i', 'í' => 'i', 'î' => 'i', 'ï' => 'i',
-
-        // Accents latins - lettre N
         'Ñ' => 'N', 'ñ' => 'n',
-
-        // Accents latins - lettre O
         'Ò' => 'O', 'Ó' => 'O', 'Ô' => 'O', 'Õ' => 'O', 'Ö' => 'O', 'Ø' => 'O',
         'ò' => 'o', 'ó' => 'o', 'ô' => 'o', 'õ' => 'o', 'ö' => 'o', 'ø' => 'o',
-
-        // Accents latins - lettre U
         'Ù' => 'U', 'Ú' => 'U', 'Û' => 'U', 'Ü' => 'U',
         'ù' => 'u', 'ú' => 'u', 'û' => 'u', 'ü' => 'u',
-
-        // Accents latins - lettre Y
         'Ý' => 'Y', 'Ÿ' => 'Y', 'ý' => 'y', 'ÿ' => 'y',
-
-        // Ligatures
         'Æ' => 'AE', 'æ' => 'ae',
         'Œ' => 'OE', 'œ' => 'oe',
         'ß' => 'ss',
-
-        // Caractères grecs
         'α' => 'a', 'Α' => 'A',
         'β' => 'b', 'Β' => 'B',
         'γ' => 'g', 'Γ' => 'G',
@@ -74,8 +59,6 @@ final class TextNormalizerService
         'χ' => 'ch', 'Χ' => 'Ch',
         'ψ' => 'ps', 'Ψ' => 'Ps',
         'ω' => 'o', 'Ω' => 'O',
-
-        // Caractères cyrilliques
         'а' => 'a', 'А' => 'A',
         'б' => 'b', 'Б' => 'B',
         'в' => 'v', 'В' => 'V',
@@ -109,8 +92,6 @@ final class TextNormalizerService
         'э' => 'e', 'Э' => 'E',
         'ю' => 'yu', 'Ю' => 'Yu',
         'я' => 'ya', 'Я' => 'Ya',
-
-        // Symboles divers
         '©' => ' (c) ',
         '®' => ' (r) ',
         '™' => ' tm ',
@@ -126,9 +107,6 @@ final class TextNormalizerService
         '…' => ' ... ',
     ];
 
-    /**
-     * Table des symboles monétaires avec leurs équivalents textuels
-     */
     private const CURRENCY_SYMBOLS = [
         '€' => ' eur ',
         '£' => ' gbp ',
@@ -145,37 +123,25 @@ final class TextNormalizerService
         '₵' => ' cedi ',
     ];
 
-    public function __construct(?SearchConfig $config = null)
-    {
-        $this->config = $config ?? new SearchConfig;
-    }
+    public function __construct(
+        private SearchConfig $config
+    ) {}
 
-    /**
-     * Normalise un texte : minuscules, sans accents, sans caractères spéciaux
-     */
     public function normalize(string $text): string
     {
-        // 1. Supprimer les accents et caractères spéciaux (table de correspondance)
+        // Remplacer les tirets par des espaces pour les mots composés
+        $text = str_replace('-', ' ', $text);
+
         $text = $this->removeDiacritics($text);
-
-        // 2. Supprimer les symboles monétaires avec espace
         $text = $this->removeCurrencySymbols($text);
-
-        // 3. Supprimer les caractères spéciaux (garde lettres, chiffres, espaces)
+        $text = $this->removeElidedArticles($text);
         $text = $this->removeSpecialChars($text);
-
-        // 4. Normaliser les espaces
         $text = $this->normalizeSpaces($text);
-
-        // 5. Mettre en minuscules
         $text = mb_strtolower($text);
 
         return $text;
     }
 
-    /**
-     * Normalise et extrait les mots d'un texte
-     */
     public function extractWords(string $text): array
     {
         $normalized = $this->normalize($text);
@@ -188,36 +154,35 @@ final class TextNormalizerService
     }
 
     /**
-     * Supprime les accents et caractères diacritiques avec la table de correspondance
+     * Supprime UNIQUEMENT les articles l' et d'
+     * NE SUPPRIME PAS j', c', t', m', n', qu'
      */
+    public function removeElidedArticles(string $text): string
+    {
+        foreach (self::ELIDED_ARTICLES as $article) {
+            $text = preg_replace('/\b'.preg_quote($article, '/').'(\p{L}+)/u', '$1', $text);
+        }
+
+        return $text;
+    }
+
     public function removeDiacritics(string $text): string
     {
         return strtr($text, self::DIACRITICS);
     }
 
-    /**
-     * Supprime les symboles monétaires et les remplace par leur équivalent textuel avec espaces
-     */
     public function removeCurrencySymbols(string $text): string
     {
         return strtr($text, self::CURRENCY_SYMBOLS);
     }
 
-    /**
-     * Supprime les caractères spéciaux (garde lettres, chiffres, espaces)
-     * Conserve les apostrophes et les tirets pour les mots composés
-     */
     public function removeSpecialChars(string $text): string
     {
-        // Conserver les lettres, chiffres, espaces, apostrophes et tirets
         $text = preg_replace('/[^\p{L}\p{N}\s\'-]/u', ' ', $text);
 
         return $text ?? '';
     }
 
-    /**
-     * Normalise les espaces (supprime les espaces multiples, les espaces en début/fin)
-     */
     public function normalizeSpaces(string $text): string
     {
         $text = preg_replace('/\s+/', ' ', $text);
@@ -225,17 +190,11 @@ final class TextNormalizerService
         return trim($text ?? '');
     }
 
-    /**
-     * Vérifie si le texte contient des caractères spéciaux
-     */
     public function hasSpecialChars(string $text): bool
     {
         return preg_match('/[^a-zA-Z0-9\s]/', $text) === 1;
     }
 
-    /**
-     * Supprime les mots trop courts
-     */
     public function removeShortWords(array $words, int $minLength = 2): array
     {
         return array_values(array_filter($words, function ($word) use ($minLength) {
@@ -243,27 +202,16 @@ final class TextNormalizerService
         }));
     }
 
-    /**
-     * Vérifie si le texte contient des caractères accentués
-     * Version optimisée (ne parcourt pas 200+ patterns)
-     */
     public function hasAccents(string $text): bool
     {
-        // Intervalle des caractères accentués latins
         return preg_match('/[À-ÿ]/u', $text) === 1;
     }
 
-    /**
-     * Supprime les caractères non-ASCII
-     */
     public function removeNonAscii(string $text): string
     {
         return preg_replace('/[^\x00-\x7F]/', ' ', $text) ?? '';
     }
 
-    /**
-     * Normalise les apostrophes courbes en apostrophes simples
-     */
     public function normalizeApostrophes(string $text): string
     {
         $apostrophes = [
@@ -277,17 +225,11 @@ final class TextNormalizerService
         return strtr($text, $apostrophes);
     }
 
-    /**
-     * Nettoie un texte en supprimant les caractères non imprimables
-     */
     public function clean(string $text): string
     {
         return preg_replace('/[\x00-\x1F\x7F]/u', ' ', $text) ?? '';
     }
 
-    /**
-     * Vérifie si le texte contient des caractères non-latins
-     */
     public function hasNonLatinCharacters(string $text): bool
     {
         return preg_match('/[^\x00-\x7F]/u', $text) === 1;

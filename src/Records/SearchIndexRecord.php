@@ -5,8 +5,7 @@ declare(strict_types=1);
 namespace AndyDefer\LaravelSearch\Records;
 
 use AndyDefer\DomainStructures\Abstracts\AbstractRecord;
-use AndyDefer\LaravelSearch\ValueObjects\ItemWordsVO;
-use AndyDefer\LaravelSearch\ValueObjects\NgramsVO;
+use AndyDefer\DomainStructures\Utils\Sequential;
 use AndyDefer\PhpVo\ValueObjects\Strings\UuidVO;
 use AndyDefer\PhpVo\ValueObjects\Types\StringVO;
 
@@ -18,7 +17,8 @@ final class SearchIndexRecord extends AbstractRecord
         public readonly ?StringVO $searchable_id = null,
         public readonly ?StringVO $source_column = null,
         public readonly ?StringVO $original_text = null,
-        public readonly ?ItemWordsVO $item_words = null,
-        public readonly ?NgramsVO $ngrams = null,
+        public readonly ?StringVO $normalized_text = null,
+        public readonly ?Sequential $item_words = null,
+        public readonly ?Sequential $ngrams = null,
     ) {}
 }

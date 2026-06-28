@@ -4,9 +4,8 @@ declare(strict_types=1);
 
 namespace AndyDefer\LaravelSearch\Models;
 
+use AndyDefer\DomainStructures\Utils\Sequential;
 use AndyDefer\LaravelSearch\Records\SearchIndexRecord;
-use AndyDefer\LaravelSearch\ValueObjects\ItemWordsVO;
-use AndyDefer\LaravelSearch\ValueObjects\NgramsVO;
 use AndyDefer\PhpVo\ValueObjects\Strings\UuidVO;
 use AndyDefer\PhpVo\ValueObjects\Types\StringVO;
 use Illuminate\Database\Eloquent\Model;
@@ -23,6 +22,7 @@ class SearchIndex extends Model
         'id',
         'searchable_type',
         'searchable_id',
+        'normalized_text',
         'source_column',
         'original_text',
         'item_words',
@@ -66,42 +66,31 @@ class SearchIndex extends Model
         return StringVO::from($this->original_text);
     }
 
-    public function getItemWords(): ItemWordsVO
+    public function getNormalizedText(): StringVO
+    {
+        return StringVO::from($this->normalized_text);
+    }
+
+    public function getItemWords(): Sequential
     {
         $wordsArray = $this->item_words ?? [];
 
         if (empty($wordsArray)) {
-            return new ItemWordsVO('');
+            return Sequential::from([]);
         }
 
-        return ItemWordsVO::fromArray($wordsArray);
+        return Sequential::from($wordsArray);
     }
 
-    public function getNgrams(): NgramsVO
+    public function getNgrams(): Sequential
     {
         $ngramsArray = $this->ngrams ?? [];
 
         if (empty($ngramsArray)) {
-            return new NgramsVO('');
+            return Sequential::from([]);
         }
 
-        return NgramsVO::fromArray($ngramsArray);
-    }
-
-    // ========== SETTERS ==========
-
-    public function setItemWords(ItemWordsVO $words): self
-    {
-        $this->item_words = $words->toArray();
-
-        return $this;
-    }
-
-    public function setNgrams(NgramsVO $ngrams): self
-    {
-        $this->ngrams = $ngrams->toArray();
-
-        return $this;
+        return Sequential::from($ngramsArray);
     }
 
     // ========== TO RECORD ==========
@@ -114,45 +103,9 @@ class SearchIndex extends Model
             searchable_id: $this->getSearchableId(),
             source_column: $this->getSourceColumn(),
             original_text: $this->getOriginalText(),
+            normalized_text: $this->getNormalizedText(),
             item_words: $this->getItemWords(),
             ngrams: $this->getNgrams(),
         );
-    }
-
-    // ========== CRÉATION DEPUIS UN RECORD ==========
-
-    public static function fromRecord(SearchIndexRecord $record): self
-    {
-        $model = new self;
-
-        if ($record->id !== null) {
-            $model->id = $record->id->getValue();
-        }
-
-        if ($record->searchable_type !== null) {
-            $model->searchable_type = $record->searchable_type->getValue();
-        }
-
-        if ($record->searchable_id !== null) {
-            $model->searchable_id = $record->searchable_id->getValue();
-        }
-
-        if ($record->source_column !== null) {
-            $model->source_column = $record->source_column->getValue();
-        }
-
-        if ($record->original_text !== null) {
-            $model->original_text = $record->original_text->getValue();
-        }
-
-        if ($record->item_words !== null) {
-            $model->item_words = $record->item_words->toArray();
-        }
-
-        if ($record->ngrams !== null) {
-            $model->ngrams = $record->ngrams->toArray();
-        }
-
-        return $model;
     }
 }

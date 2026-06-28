@@ -21,6 +21,9 @@ return new class extends Migration
             // Champ pour le texte original
             $table->text('original_text');
 
+            // Champ pour le texte normalisé
+            $table->text('normalized_text');
+
             // Champ pour les mots normalisés (item_words)
             $table->json('item_words');
 
