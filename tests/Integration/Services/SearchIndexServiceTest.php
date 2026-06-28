@@ -4,13 +4,14 @@ declare(strict_types=1);
 
 namespace AndyDefer\LaravelSearch\Tests\Integration\Services;
 
-use AndyDefer\DomainStructures\Utils\Sequential;
+use AndyDefer\DomainStructures\Collections\Utility\StringTypedCollection;
 use AndyDefer\LaravelSearch\Collections\SearchIndexCollection;
 use AndyDefer\LaravelSearch\Records\SearchIndexFiltersRecord;
 use AndyDefer\LaravelSearch\Repositories\SearchIndexRepository;
 use AndyDefer\LaravelSearch\Services\NgramService;
 use AndyDefer\LaravelSearch\Services\SearchIndexService;
 use AndyDefer\LaravelSearch\Services\TextNormalizerService;
+use AndyDefer\LaravelSearch\Services\WordVectorParserService;
 use AndyDefer\LaravelSearch\Tests\Fixtures\Models\TestAddress;
 use AndyDefer\LaravelSearch\Tests\Fixtures\Models\TestProduct;
 use AndyDefer\LaravelSearch\Tests\Fixtures\Models\TestUser;
@@ -24,6 +25,8 @@ final class SearchIndexServiceTest extends IntegrationTestCase
 
     private SearchIndexRepository $repository;
 
+    private WordVectorParserService $wordVectorParser;
+
     private TextNormalizerService $normalizer;
 
     private NgramService $ngramService;
@@ -34,12 +37,14 @@ final class SearchIndexServiceTest extends IntegrationTestCase
 
         $this->normalizer = $this->app->make(TextNormalizerService::class);
         $this->ngramService = $this->app->make(NgramService::class);
-        $this->repository = new SearchIndexRepository($this->ngramService);
+        $this->wordVectorParser = $this->app->make(WordVectorParserService::class);
+        $this->repository = new SearchIndexRepository($this->ngramService, $this->wordVectorParser);
 
         $this->service = new SearchIndexService(
             $this->repository,
             $this->normalizer,
             $this->ngramService,
+            $this->wordVectorParser,
         );
     }
 
@@ -451,7 +456,7 @@ final class SearchIndexServiceTest extends IntegrationTestCase
         $words = ['test', 'hello'];
         $result = $method->invoke($this->service, $words);
 
-        $this->assertInstanceOf(Sequential::class, $result);
+        $this->assertInstanceOf(StringTypedCollection::class, $result);
         $this->assertNotEmpty($result->toArray());
 
         $ngrams = $result->toArray();
@@ -542,8 +547,8 @@ final class SearchIndexServiceTest extends IntegrationTestCase
             source_column: StringVO::from('address_city'),
         );
 
-        $words = Sequential::from(['paris']);
-        $ngrams = Sequential::from($this->ngramService->generateFromText('paris')->toArray());
+        $words = StringTypedCollection::from(['paris']);
+        $ngrams = StringTypedCollection::from($this->ngramService->generateFromText('paris')->toArray());
 
         $candidatesVO = new SearchCandidatesVO($words, $ngrams, $filters, 10);
 
@@ -579,8 +584,8 @@ final class SearchIndexServiceTest extends IntegrationTestCase
             source_column: StringVO::from('address_country'),
         );
 
-        $words = Sequential::from(['france']);
-        $ngrams = Sequential::from($this->ngramService->generateFromText('france')->toArray());
+        $words = StringTypedCollection::from(['france']);
+        $ngrams = StringTypedCollection::from($this->ngramService->generateFromText('france')->toArray());
 
         $candidatesVO = new SearchCandidatesVO($words, $ngrams, $filters, 10);
 

@@ -5,7 +5,8 @@ declare(strict_types=1);
 namespace AndyDefer\LaravelSearch\Records;
 
 use AndyDefer\DomainStructures\Abstracts\AbstractRecord;
-use AndyDefer\DomainStructures\Utils\Sequential;
+use AndyDefer\DomainStructures\Collections\Utility\StringTypedCollection;
+use AndyDefer\LaravelSearch\Collections\WordVectorCollection;
 use AndyDefer\PhpVo\ValueObjects\Strings\UuidVO;
 use AndyDefer\PhpVo\ValueObjects\Types\StringVO;
 
@@ -18,7 +19,7 @@ final class SearchIndexFiltersRecord extends AbstractRecord
         public readonly ?StringVO $source_column = null,
         public readonly ?StringVO $original_text = null,
         public readonly ?StringVO $normalized_text = null,
-        public readonly ?Sequential $item_words = null,
-        public readonly ?Sequential $ngrams = null,
+        public readonly ?WordVectorCollection $item_words = null,
+        public readonly ?StringTypedCollection $ngrams = null,
     ) {}
 }

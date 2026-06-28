@@ -4,12 +4,14 @@ declare(strict_types=1);
 
 namespace AndyDefer\LaravelSearch\Services;
 
-use AndyDefer\DomainStructures\Utils\Sequential;
+use AndyDefer\DomainStructures\Collections\Utility\StringTypedCollection;
 use AndyDefer\LaravelSearch\Collections\SearchIndexCollection;
+use AndyDefer\LaravelSearch\Collections\WordVectorCollection;
 use AndyDefer\LaravelSearch\Contracts\Indexable;
 use AndyDefer\LaravelSearch\Contracts\Services\SearchIndexServiceInterface;
 use AndyDefer\LaravelSearch\Records\SearchIndexFiltersRecord;
 use AndyDefer\LaravelSearch\Records\SearchIndexRecord;
+use AndyDefer\LaravelSearch\Records\WordVectorRecord;
 use AndyDefer\LaravelSearch\Repositories\SearchIndexRepository;
 use AndyDefer\PhpVo\ValueObjects\Strings\UuidVO;
 use AndyDefer\PhpVo\ValueObjects\Types\StringVO;
@@ -25,6 +27,7 @@ final class SearchIndexService implements SearchIndexServiceInterface
         private readonly SearchIndexRepository $repository,
         private readonly TextNormalizerService $normalizer,
         private readonly NgramService $ngramService,
+        private readonly WordVectorParserService $wordVectorParser,
     ) {}
 
     public function index(Indexable $entity): SearchIndexCollection
@@ -46,7 +49,38 @@ final class SearchIndexService implements SearchIndexServiceInterface
 
             $normalizedText = $this->normalizer->normalize((string) $value);
             $words = explode(' ', $normalizedText);
+
+            // Créer les WordVectorRecord pour chaque mot
+            $wordVectors = new WordVectorCollection;
+            foreach ($words as $word) {
+                if (! empty($word)) {
+                    $normalized = $this->normalizer->normalize($word);
+                    $uniqueLetters = array_unique(str_split($normalized));
+                    $metaphone = metaphone($normalized);
+
+                    $ngrams = $this->ngramService->generate($normalized)->toArray();
+                    $bigrams = array_values(array_filter($ngrams, fn ($g) => strlen($g) === 2));
+
+                    $metaphoneBigrams = [];
+                    $metaphoneLength = strlen($metaphone);
+                    for ($i = 0; $i < $metaphoneLength - 1; $i++) {
+                        $metaphoneBigrams[] = substr($metaphone, $i, 2);
+                    }
+
+                    $wordVectors->add(WordVectorRecord::from([
+                        'word' => $word,
+                        'metaphone' => $metaphone,
+                        'unique_letters' => $uniqueLetters,
+                        'bigrams' => $bigrams,
+                        'metaphone_bigrams' => $metaphoneBigrams,
+                    ]));
+                }
+            }
+
+            // Générer les n-grams
             $ngrams = $this->generateNgramsFromWords($words);
+
+            $uris = $this->wordVectorParser->unparse($wordVectors);
 
             $record = new SearchIndexRecord(
                 id: UuidVO::generate(),
@@ -55,8 +89,8 @@ final class SearchIndexService implements SearchIndexServiceInterface
                 source_column: StringVO::from($column),
                 original_text: StringVO::from((string) $value),
                 normalized_text: StringVO::from($normalizedText),
-                item_words: Sequential::from($words),
-                ngrams: Sequential::from($ngrams->toArray()),
+                item_words: $wordVectors,
+                ngrams: StringTypedCollection::from($ngrams->toArray()),
             );
 
             $index = $this->repository->create($record);
@@ -210,7 +244,6 @@ final class SearchIndexService implements SearchIndexServiceInterface
         $query->chunk($batchSize, function (Collection $entities) use (&$indexed, &$deleted, &$skipped) {
             foreach ($entities as $entity) {
                 if ($entity->shouldBeIndexed()) {
-                    // Vérifier si déjà indexé
                     /** @var Indexable $entity */
                     $filters = new SearchIndexFiltersRecord(
                         searchable_type: StringVO::from($entity->getMorphClass()),
@@ -220,7 +253,6 @@ final class SearchIndexService implements SearchIndexServiceInterface
                     $existing = $this->repository->count($filters);
 
                     if ($existing > 0) {
-                        // Mettre à jour (reindex)
                         $this->reindex($entity);
                         $indexed++;
                     } else {
@@ -228,7 +260,6 @@ final class SearchIndexService implements SearchIndexServiceInterface
                         $indexed++;
                     }
                 } else {
-                    // Si ne doit pas être indexé, supprimer l'index existant
                     $filters = new SearchIndexFiltersRecord(
                         searchable_type: StringVO::from($entity->getMorphClass()),
                         searchable_id: StringVO::from((string) $entity->getKey()),
@@ -252,7 +283,7 @@ final class SearchIndexService implements SearchIndexServiceInterface
         ];
     }
 
-    private function generateNgramsFromWords(array $words): Sequential
+    private function generateNgramsFromWords(array $words): StringTypedCollection
     {
         $allGrams = [];
 
@@ -261,7 +292,7 @@ final class SearchIndexService implements SearchIndexServiceInterface
             $allGrams = array_merge($allGrams, $ngrams);
         }
 
-        return Sequential::from(array_unique($allGrams));
+        return StringTypedCollection::from(array_unique($allGrams));
     }
 
     private function getEntitiesQuery(string $morphClass): Builder

@@ -5,11 +5,13 @@ declare(strict_types=1);
 namespace AndyDefer\LaravelSearch\Repositories;
 
 use AndyDefer\DomainStructures\Abstracts\AbstractRecord;
-use AndyDefer\DomainStructures\Utils\Sequential;
+use AndyDefer\DomainStructures\Collections\Utility\StringTypedCollection;
+use AndyDefer\LaravelSearch\Collections\WordVectorCollection;
 use AndyDefer\LaravelSearch\Models\SearchIndex;
 use AndyDefer\LaravelSearch\Records\SearchIndexFiltersRecord;
 use AndyDefer\LaravelSearch\Records\SearchIndexRecord;
 use AndyDefer\LaravelSearch\Services\NgramService;
+use AndyDefer\LaravelSearch\Services\WordVectorParserService;
 use AndyDefer\LaravelSearch\ValueObjects\SearchCandidatesVO;
 use AndyDefer\PhpVo\ValueObjects\Types\StringVO;
 use AndyDefer\Repository\AbstractRepository;
@@ -23,6 +25,7 @@ final class SearchIndexRepository extends AbstractRepository
 {
     public function __construct(
         private readonly NgramService $ngramService,
+        private readonly WordVectorParserService $wordVectorParser,
     ) {
         parent::__construct(SearchIndex::class, SearchIndexRecord::class);
     }
@@ -58,8 +61,8 @@ final class SearchIndexRepository extends AbstractRepository
         }
 
         if ($filters->item_words !== null) {
-            foreach ($filters->item_words->toArray() as $word) {
-                $query->whereJsonContains('item_words', $word);
+            foreach ($filters->item_words->toArray() as $wordUri) {
+                $query->whereJsonContains('item_words', $wordUri);
             }
         }
 
@@ -76,8 +79,11 @@ final class SearchIndexRepository extends AbstractRepository
 
     public function findByWord(StringVO $word): Collection
     {
+        $collection = $this->wordVectorParser->parse([$word->getValue()]);
+        $uris = $this->wordVectorParser->unparse($collection);
+
         $filters = SearchIndexFiltersRecord::from([
-            'item_words' => Sequential::from([$word->getValue()]),
+            'item_words' => StringTypedCollection::from($uris),
         ]);
 
         $findBy = FindByRecord::from([
@@ -93,8 +99,11 @@ final class SearchIndexRepository extends AbstractRepository
         int $limit = 10,
         ?SelectColumns $columns = null
     ): Collection {
+        $collection = $this->wordVectorParser->parse([$word->getValue()]);
+        $uris = $this->wordVectorParser->unparse($collection);
+
         $filters = SearchIndexFiltersRecord::from([
-            'item_words' => Sequential::from([$word->getValue()]),
+            'item_words' => StringTypedCollection::from($uris),
         ]);
 
         $findBy = FindByRecord::from([
@@ -109,7 +118,7 @@ final class SearchIndexRepository extends AbstractRepository
 
     public function findByNgram(StringVO $ngram): Collection
     {
-        $ngrams = Sequential::from($this->ngramService->generate($ngram->getValue())->toArray());
+        $ngrams = StringTypedCollection::from($this->ngramService->generate($ngram->getValue())->toArray());
 
         $filters = SearchIndexFiltersRecord::from([
             'ngrams' => $ngrams,
@@ -127,7 +136,7 @@ final class SearchIndexRepository extends AbstractRepository
         SortColumns $sort,
         int $limit = 10
     ): Collection {
-        $ngrams = Sequential::from($this->ngramService->generate($ngram->getValue())->toArray());
+        $ngrams = StringTypedCollection::from($this->ngramService->generate($ngram->getValue())->toArray());
 
         $filters = SearchIndexFiltersRecord::from([
             'ngrams' => $ngrams,
@@ -145,7 +154,7 @@ final class SearchIndexRepository extends AbstractRepository
 
     public function findByWordForNgrams(StringVO $word): Collection
     {
-        $ngrams = Sequential::from($this->ngramService->generate($word->getValue())->toArray());
+        $ngrams = StringTypedCollection::from($this->ngramService->generate($word->getValue())->toArray());
 
         $filters = SearchIndexFiltersRecord::from([
             'ngrams' => $ngrams,
@@ -223,10 +232,13 @@ final class SearchIndexRepository extends AbstractRepository
         StringVO $sourceType,
         ?StringVO $sourceId = null
     ): Collection {
+        $collection = $this->wordVectorParser->parse([$word->getValue()]);
+        $uris = $this->wordVectorParser->unparse($collection);
+
         $filters = SearchIndexFiltersRecord::from([
             'searchable_type' => $sourceType,
             'searchable_id' => $sourceId,
-            'item_words' => Sequential::from([$word->getValue()]),
+            'item_words' => StringTypedCollection::from($uris),
         ]);
 
         $findBy = FindByRecord::from([
@@ -242,8 +254,11 @@ final class SearchIndexRepository extends AbstractRepository
         int $limit = 20,
         ?SelectColumns $columns = null
     ): Collection {
+        $collection = $this->wordVectorParser->parse([$word->getValue()]);
+        $uris = $this->wordVectorParser->unparse($collection);
+
         $filters = SearchIndexFiltersRecord::from([
-            'item_words' => Sequential::from([$word->getValue()]),
+            'item_words' => StringTypedCollection::from($uris),
         ]);
 
         $findBy = FindByRecord::from([
@@ -287,14 +302,18 @@ final class SearchIndexRepository extends AbstractRepository
     }
 
     // ============================================================
-    // MÉTHODES POUR RÉCUPÉRER DES CANDIDATS AVEC SearchCandidatesVO
+    // MÉTHODES DE SUPPRESSION
     // ============================================================
 
-    /**
-     * Trouve les candidats à partir d'un SearchCandidatesVO
-     *
-     * @return Collection<SearchIndex>
-     */
+    public function deleteBulk(AbstractRecord $filters): int
+    {
+        return parent::deleteBulk($filters);
+    }
+
+    // ============================================================
+    // MÉTHODES POUR RÉCUPÉRER DES CANDIDATS
+    // ============================================================
+
     public function findCandidates(SearchCandidatesVO $candidates): Collection
     {
         $words = $candidates->getWords();
@@ -313,12 +332,9 @@ final class SearchIndexRepository extends AbstractRepository
         }
 
         $query = $this->model->newQuery();
-
-        // Appliquer les filtres
         $this->applyFilters($query, $filters);
 
         $query->where(function ($q) use ($wordArray, $ngramArray, $hasWords, $hasNgrams) {
-            // Recherche par n-grams
             if ($hasNgrams) {
                 $q->where(function ($subQ) use ($ngramArray) {
                     foreach ($ngramArray as $ngram) {
@@ -329,25 +345,73 @@ final class SearchIndexRepository extends AbstractRepository
                 });
             }
 
-            // Recherche par mots (OR avec les n-grams)
             if ($hasWords) {
-                $wordsFiltered = array_filter($wordArray, function ($word) {
-                    return is_string($word) && strlen(trim($word)) >= 2;
-                });
-
-                if (! empty($wordsFiltered)) {
-                    $wordQuery = function ($subQ) use ($wordsFiltered) {
-                        foreach ($wordsFiltered as $word) {
-                            $subQ->orWhereJsonContains('item_words', $word);
+                $q->where(function ($subQ) use ($wordArray) {
+                    foreach ($wordArray as $word) {
+                        if (is_string($word) && strlen(trim($word)) >= 2) {
+                            $subQ->orWhere('item_words', 'like', '%'.$word.'%');
                         }
-                    };
-
-                    if ($hasNgrams) {
-                        $q->orWhere($wordQuery);
-                    } else {
-                        $q->where($wordQuery);
                     }
-                }
+                });
+            }
+        });
+
+        $query->limit($limit);
+        $query->orderBy('created_at', 'desc');
+
+        return $query->get();
+    }
+
+    public function findCandidatesBySimilarity(
+        SearchCandidatesVO $candidates,
+        WordVectorCollection $queryWordVectors,
+        int $minCommonBigrams = 2,
+        int $minCommonMetaphoneBigrams = 1
+    ): Collection {
+        $words = $candidates->getWords();
+        $ngrams = $candidates->getNgrams();
+        $filters = $candidates->getFilters();
+        $limit = $candidates->getLimit();
+
+        $wordArray = $words->toArray();
+        $ngramArray = $ngrams->toArray();
+
+        $hasWords = ! empty($wordArray);
+        $hasNgrams = ! empty($ngramArray);
+
+        if (! $hasWords && ! $hasNgrams) {
+            return new Collection;
+        }
+
+        $query = $this->model->newQuery();
+        $this->applyFilters($query, $filters);
+
+        // Extraire les bigrams et metaphone_bigrams de la requête
+        $queryBigrams = $queryWordVectors->getAllBigrams();
+        $queryMetaphoneBigrams = $queryWordVectors->getAllMetaphoneBigrams();
+
+        $query->where(function ($q) use ($wordArray, $ngramArray, $hasWords, $hasNgrams) {
+            // Recherche par n-grams (OR)
+            if ($hasNgrams) {
+                $q->where(function ($subQ) use ($ngramArray) {
+                    foreach ($ngramArray as $ngram) {
+                        if (is_string($ngram) && strlen(trim($ngram)) >= 2) {
+                            $subQ->orWhereJsonContains('ngrams', $ngram);
+                        }
+                    }
+                });
+            }
+
+            // Recherche par similarité sur item_words (bigrams et metaphone)
+            if ($hasWords) {
+                $q->orWhere(function ($subQ) use ($wordArray) {
+                    foreach ($wordArray as $word) {
+                        if (is_string($word) && strlen(trim($word)) >= 2) {
+                            // Au moins $minCommonBigrams bigrams communs
+                            $subQ->orWhere('item_words', 'like', '%'.$word.'%');
+                        }
+                    }
+                });
             }
         });
 

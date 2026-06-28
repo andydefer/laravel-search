@@ -4,8 +4,10 @@ declare(strict_types=1);
 
 namespace AndyDefer\LaravelSearch\Models;
 
-use AndyDefer\DomainStructures\Utils\Sequential;
+use AndyDefer\DomainStructures\Collections\Utility\StringTypedCollection;
+use AndyDefer\LaravelSearch\Collections\WordVectorCollection;
 use AndyDefer\LaravelSearch\Records\SearchIndexRecord;
+use AndyDefer\LaravelSearch\Services\WordVectorParserService;
 use AndyDefer\PhpVo\ValueObjects\Strings\UuidVO;
 use AndyDefer\PhpVo\ValueObjects\Types\StringVO;
 use Illuminate\Database\Eloquent\Model;
@@ -71,26 +73,23 @@ class SearchIndex extends Model
         return StringVO::from($this->normalized_text);
     }
 
-    public function getItemWords(): Sequential
+    public function getItemWords(): WordVectorCollection
     {
-        $wordsArray = $this->item_words ?? [];
+        /** @var WordVectorParserService $parser */
+        $parser = app(WordVectorParserService::class);
 
-        if (empty($wordsArray)) {
-            return Sequential::from([]);
-        }
-
-        return Sequential::from($wordsArray);
+        return $parser->parse($this->item_words ?? []);
     }
 
-    public function getNgrams(): Sequential
+    public function getNgrams(): StringTypedCollection
     {
         $ngramsArray = $this->ngrams ?? [];
 
         if (empty($ngramsArray)) {
-            return Sequential::from([]);
+            return StringTypedCollection::from([]);
         }
 
-        return Sequential::from($ngramsArray);
+        return StringTypedCollection::from($ngramsArray);
     }
 
     // ========== TO RECORD ==========

@@ -4,7 +4,7 @@ declare(strict_types=1);
 
 namespace AndyDefer\LaravelSearch\Services;
 
-use AndyDefer\DomainStructures\Utils\Sequential;
+use AndyDefer\DomainStructures\Collections\Utility\StringTypedCollection;
 use AndyDefer\LaravelSearch\Collections\ItemWordsCollection;
 use AndyDefer\LaravelSearch\Collections\MatchResultCollection;
 use AndyDefer\LaravelSearch\Collections\QueryWordsCollection;
@@ -46,7 +46,7 @@ final class QueryProcessorService implements QueryProcessorInterface
             $collection->add(QueryWordRecord::from([
                 'original' => StringVO::from($word),
                 'normalized' => $this->normalizer->normalize($word),
-                'ngrams' => Sequential::from($ngrams),
+                'ngrams' => StringTypedCollection::from($ngrams),
             ]));
         }
 

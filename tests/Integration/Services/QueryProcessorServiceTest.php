@@ -4,7 +4,7 @@ declare(strict_types=1);
 
 namespace AndyDefer\LaravelSearch\Tests\Integration\Services;
 
-use AndyDefer\DomainStructures\Utils\Sequential;
+use AndyDefer\DomainStructures\Collections\Utility\StringTypedCollection;
 use AndyDefer\LaravelSearch\Collections\ItemWordsCollection;
 use AndyDefer\LaravelSearch\Collections\MatchResultCollection;
 use AndyDefer\LaravelSearch\Collections\QueryWordsCollection;
@@ -78,7 +78,7 @@ final class QueryProcessorServiceTest extends IntegrationTestCase
         $this->assertInstanceOf(QueryWordRecord::class, $word);
         $this->assertEquals('test', $word->original->getValue());
         $this->assertEquals('test', $word->normalized->getValue());
-        $this->assertInstanceOf(Sequential::class, $word->ngrams);
+        $this->assertInstanceOf(StringTypedCollection::class, $word->ngrams);
     }
 
     public function test_process_empty_query(): void
@@ -184,13 +184,13 @@ final class QueryProcessorServiceTest extends IntegrationTestCase
         $queryWords->add(QueryWordRecord::from([
             'original' => StringVO::from('test'),
             'normalized' => StringVO::from('test'),
-            'ngrams' => Sequential::from($ngrams),
+            'ngrams' => StringTypedCollection::from($ngrams),
         ]));
 
         $itemWords = new ItemWordsCollection;
         $itemWords->add(ItemWordRecord::from([
             'normalized' => 'test',
-            'ngrams' => Sequential::from($ngrams),
+            'ngrams' => StringTypedCollection::from($ngrams),
             'max_score' => $maxScore,
         ]));
 
@@ -212,13 +212,13 @@ final class QueryProcessorServiceTest extends IntegrationTestCase
         $queryWords->add(QueryWordRecord::from([
             'original' => StringVO::from('test'),
             'normalized' => StringVO::from('test'),
-            'ngrams' => Sequential::from($queryNgrams),
+            'ngrams' => StringTypedCollection::from($queryNgrams),
         ]));
 
         $itemWords = new ItemWordsCollection;
         $itemWords->add(ItemWordRecord::from([
             'normalized' => 'testing',
-            'ngrams' => Sequential::from($itemNgrams),
+            'ngrams' => StringTypedCollection::from($itemNgrams),
             'max_score' => FloatVO::from(2.0),
         ]));
 
@@ -242,13 +242,13 @@ final class QueryProcessorServiceTest extends IntegrationTestCase
         $queryWords->add(QueryWordRecord::from([
             'original' => StringVO::from('test'),
             'normalized' => StringVO::from('test'),
-            'ngrams' => Sequential::from($queryNgrams),
+            'ngrams' => StringTypedCollection::from($queryNgrams),
         ]));
 
         $itemWords = new ItemWordsCollection;
         $itemWords->add(ItemWordRecord::from([
             'normalized' => 'xyz',
-            'ngrams' => Sequential::from($itemNgrams),
+            'ngrams' => StringTypedCollection::from($itemNgrams),
             'max_score' => FloatVO::from(1.0),
         ]));
 
@@ -266,23 +266,23 @@ final class QueryProcessorServiceTest extends IntegrationTestCase
         $queryWords->add(QueryWordRecord::from([
             'original' => StringVO::from('hello'),
             'normalized' => StringVO::from('hello'),
-            'ngrams' => Sequential::from($helloNgrams),
+            'ngrams' => StringTypedCollection::from($helloNgrams),
         ]));
         $queryWords->add(QueryWordRecord::from([
             'original' => StringVO::from('world'),
             'normalized' => StringVO::from('world'),
-            'ngrams' => Sequential::from($worldNgrams),
+            'ngrams' => StringTypedCollection::from($worldNgrams),
         ]));
 
         $itemWords = new ItemWordsCollection;
         $itemWords->add(ItemWordRecord::from([
             'normalized' => 'hello',
-            'ngrams' => Sequential::from($helloNgrams),
+            'ngrams' => StringTypedCollection::from($helloNgrams),
             'max_score' => FloatVO::from(2.0),
         ]));
         $itemWords->add(ItemWordRecord::from([
             'normalized' => 'world',
-            'ngrams' => Sequential::from($worldNgrams),
+            'ngrams' => StringTypedCollection::from($worldNgrams),
             'max_score' => FloatVO::from(2.0),
         ]));
 
@@ -301,13 +301,13 @@ final class QueryProcessorServiceTest extends IntegrationTestCase
         $queryWords->add(QueryWordRecord::from([
             'original' => StringVO::from('test'),
             'normalized' => StringVO::from('test'),
-            'ngrams' => Sequential::from($queryNgrams),
+            'ngrams' => StringTypedCollection::from($queryNgrams),
         ]));
 
         $itemWords = new ItemWordsCollection;
         $itemWords->add(ItemWordRecord::from([
             'normalized' => 'tst',
-            'ngrams' => Sequential::from($itemNgrams),
+            'ngrams' => StringTypedCollection::from($itemNgrams),
             'max_score' => FloatVO::from(1.0),
         ]));
 
@@ -339,7 +339,7 @@ final class QueryProcessorServiceTest extends IntegrationTestCase
         $queryWords->add(QueryWordRecord::from([
             'original' => StringVO::from('test'),
             'normalized' => StringVO::from('test'),
-            'ngrams' => Sequential::from($ngrams),
+            'ngrams' => StringTypedCollection::from($ngrams),
         ]));
 
         $itemWords = new ItemWordsCollection;
@@ -392,13 +392,13 @@ final class QueryProcessorServiceTest extends IntegrationTestCase
         $queryWords->add(QueryWordRecord::from([
             'original' => StringVO::from('jean'),
             'normalized' => StringVO::from('jean'),
-            'ngrams' => Sequential::from($this->ngramService->generate('jean')->toArray()),
+            'ngrams' => StringTypedCollection::from($this->ngramService->generate('jean')->toArray()),
         ]));
 
         $itemWords = new ItemWordsCollection;
         $itemWords->add(ItemWordRecord::from([
             'normalized' => 'jean',
-            'ngrams' => Sequential::from($this->ngramService->generate('jean')->toArray()),
+            'ngrams' => StringTypedCollection::from($this->ngramService->generate('jean')->toArray()),
             'max_score' => FloatVO::from(1.5),
         ]));
 
@@ -413,20 +413,20 @@ final class QueryProcessorServiceTest extends IntegrationTestCase
         $queryWords->add(QueryWordRecord::from([
             'original' => StringVO::from('jean'),
             'normalized' => StringVO::from('jean'),
-            'ngrams' => Sequential::from($this->ngramService->generate('jean')->toArray()),
+            'ngrams' => StringTypedCollection::from($this->ngramService->generate('jean')->toArray()),
         ]));
 
         $itemWords1 = new ItemWordsCollection;
         $itemWords1->add(ItemWordRecord::from([
             'normalized' => 'jean',
-            'ngrams' => Sequential::from($this->ngramService->generate('jean')->toArray()),
+            'ngrams' => StringTypedCollection::from($this->ngramService->generate('jean')->toArray()),
             'max_score' => FloatVO::from(1.5),
         ]));
 
         $itemWords2 = new ItemWordsCollection;
         $itemWords2->add(ItemWordRecord::from([
             'normalized' => 'jean',
-            'ngrams' => Sequential::from($this->ngramService->generate('jean')->toArray()),
+            'ngrams' => StringTypedCollection::from($this->ngramService->generate('jean')->toArray()),
             'max_score' => FloatVO::from(1.5),
         ]));
 
@@ -449,20 +449,20 @@ final class QueryProcessorServiceTest extends IntegrationTestCase
         $queryWords->add(QueryWordRecord::from([
             'original' => StringVO::from('rené'),
             'normalized' => StringVO::from('rene'),
-            'ngrams' => Sequential::from($this->ngramService->generate('rene')->toArray()),
+            'ngrams' => StringTypedCollection::from($this->ngramService->generate('rene')->toArray()),
         ]));
 
         $itemWords1 = new ItemWordsCollection;
         $itemWords1->add(ItemWordRecord::from([
             'normalized' => 'rené',
-            'ngrams' => Sequential::from($this->ngramService->generate('rene')->toArray()),
+            'ngrams' => StringTypedCollection::from($this->ngramService->generate('rene')->toArray()),
             'max_score' => FloatVO::from(1.5),
         ]));
 
         $itemWords2 = new ItemWordsCollection;
         $itemWords2->add(ItemWordRecord::from([
             'normalized' => 'rene',
-            'ngrams' => Sequential::from($this->ngramService->generate('rene')->toArray()),
+            'ngrams' => StringTypedCollection::from($this->ngramService->generate('rene')->toArray()),
             'max_score' => FloatVO::from(1.5),
         ]));
 
@@ -482,20 +482,20 @@ final class QueryProcessorServiceTest extends IntegrationTestCase
         $queryWords->add(QueryWordRecord::from([
             'original' => StringVO::from('jean-pierre'),
             'normalized' => StringVO::from('jean-pierre'),
-            'ngrams' => Sequential::from($this->ngramService->generate('jean-pierre')->toArray()),
+            'ngrams' => StringTypedCollection::from($this->ngramService->generate('jean-pierre')->toArray()),
         ]));
 
         $itemWords1 = new ItemWordsCollection;
         $itemWords1->add(ItemWordRecord::from([
             'normalized' => 'jean-pierre',
-            'ngrams' => Sequential::from($this->ngramService->generate('jean-pierre')->toArray()),
+            'ngrams' => StringTypedCollection::from($this->ngramService->generate('jean-pierre')->toArray()),
             'max_score' => FloatVO::from(2.5),
         ]));
 
         $itemWords2 = new ItemWordsCollection;
         $itemWords2->add(ItemWordRecord::from([
             'normalized' => 'jean',
-            'ngrams' => Sequential::from($this->ngramService->generate('jean')->toArray()),
+            'ngrams' => StringTypedCollection::from($this->ngramService->generate('jean')->toArray()),
             'max_score' => FloatVO::from(1.5),
         ]));
 
@@ -518,13 +518,13 @@ final class QueryProcessorServiceTest extends IntegrationTestCase
         $queryWords->add(QueryWordRecord::from([
             'original' => StringVO::from('iphone'),
             'normalized' => StringVO::from('iphone'),
-            'ngrams' => Sequential::from($this->ngramService->generate('iphone')->toArray()),
+            'ngrams' => StringTypedCollection::from($this->ngramService->generate('iphone')->toArray()),
         ]));
 
         $itemWords = new ItemWordsCollection;
         $itemWords->add(ItemWordRecord::from([
             'normalized' => 'iphone',
-            'ngrams' => Sequential::from($this->ngramService->generate('iphone')->toArray()),
+            'ngrams' => StringTypedCollection::from($this->ngramService->generate('iphone')->toArray()),
             'max_score' => FloatVO::from(2.0),
         ]));
 
@@ -539,13 +539,13 @@ final class QueryProcessorServiceTest extends IntegrationTestCase
         $queryWords->add(QueryWordRecord::from([
             'original' => StringVO::from('iphone'),
             'normalized' => StringVO::from('iphone'),
-            'ngrams' => Sequential::from($this->ngramService->generate('iphone')->toArray()),
+            'ngrams' => StringTypedCollection::from($this->ngramService->generate('iphone')->toArray()),
         ]));
 
         $itemWords = new ItemWordsCollection;
         $itemWords->add(ItemWordRecord::from([
             'normalized' => 'iphone',
-            'ngrams' => Sequential::from($this->ngramService->generate('iphone')->toArray()),
+            'ngrams' => StringTypedCollection::from($this->ngramService->generate('iphone')->toArray()),
             'max_score' => FloatVO::from(2.0),
         ]));
 
@@ -561,23 +561,23 @@ final class QueryProcessorServiceTest extends IntegrationTestCase
         $queryWords->add(QueryWordRecord::from([
             'original' => StringVO::from('iphone'),
             'normalized' => StringVO::from('iphone'),
-            'ngrams' => Sequential::from($this->ngramService->generate('iphone')->toArray()),
+            'ngrams' => StringTypedCollection::from($this->ngramService->generate('iphone')->toArray()),
         ]));
         $queryWords->add(QueryWordRecord::from([
             'original' => StringVO::from('15'),
             'normalized' => StringVO::from('15'),
-            'ngrams' => Sequential::from($this->ngramService->generate('15')->toArray()),
+            'ngrams' => StringTypedCollection::from($this->ngramService->generate('15')->toArray()),
         ]));
 
         $itemWords = new ItemWordsCollection;
         $itemWords->add(ItemWordRecord::from([
             'normalized' => 'iphone',
-            'ngrams' => Sequential::from($this->ngramService->generate('iphone')->toArray()),
+            'ngrams' => StringTypedCollection::from($this->ngramService->generate('iphone')->toArray()),
             'max_score' => FloatVO::from(2.0),
         ]));
         $itemWords->add(ItemWordRecord::from([
             'normalized' => '15',
-            'ngrams' => Sequential::from($this->ngramService->generate('15')->toArray()),
+            'ngrams' => StringTypedCollection::from($this->ngramService->generate('15')->toArray()),
             'max_score' => FloatVO::from(1.0),
         ]));
 
@@ -596,27 +596,27 @@ final class QueryProcessorServiceTest extends IntegrationTestCase
         $queryWords->add(QueryWordRecord::from([
             'original' => StringVO::from('macbook'),
             'normalized' => StringVO::from('macbook'),
-            'ngrams' => Sequential::from($this->ngramService->generate('macbook')->toArray()),
+            'ngrams' => StringTypedCollection::from($this->ngramService->generate('macbook')->toArray()),
         ]));
 
         $itemWords1 = new ItemWordsCollection;
         $itemWords1->add(ItemWordRecord::from([
             'normalized' => 'macbook',
-            'ngrams' => Sequential::from($this->ngramService->generate('macbook')->toArray()),
+            'ngrams' => StringTypedCollection::from($this->ngramService->generate('macbook')->toArray()),
             'max_score' => FloatVO::from(2.0),
         ]));
 
         $itemWords2 = new ItemWordsCollection;
         $itemWords2->add(ItemWordRecord::from([
             'normalized' => 'mac book',
-            'ngrams' => Sequential::from($this->ngramService->generate('macbook')->toArray()),
+            'ngrams' => StringTypedCollection::from($this->ngramService->generate('macbook')->toArray()),
             'max_score' => FloatVO::from(2.0),
         ]));
 
         $itemWords3 = new ItemWordsCollection;
         $itemWords3->add(ItemWordRecord::from([
             'normalized' => 'macbook pro',
-            'ngrams' => Sequential::from($this->ngramService->generate('macbookpro')->toArray()),
+            'ngrams' => StringTypedCollection::from($this->ngramService->generate('macbookpro')->toArray()),
             'max_score' => FloatVO::from(2.5),
         ]));
 
@@ -643,20 +643,20 @@ final class QueryProcessorServiceTest extends IntegrationTestCase
         $queryWords->add(QueryWordRecord::from([
             'original' => StringVO::from('montreal'),
             'normalized' => StringVO::from('montreal'),
-            'ngrams' => Sequential::from($this->ngramService->generate('montreal')->toArray()),
+            'ngrams' => StringTypedCollection::from($this->ngramService->generate('montreal')->toArray()),
         ]));
 
         $itemWords1 = new ItemWordsCollection;
         $itemWords1->add(ItemWordRecord::from([
             'normalized' => 'montréal',
-            'ngrams' => Sequential::from($this->ngramService->generate('montreal')->toArray()),
+            'ngrams' => StringTypedCollection::from($this->ngramService->generate('montreal')->toArray()),
             'max_score' => FloatVO::from(2.0),
         ]));
 
         $itemWords2 = new ItemWordsCollection;
         $itemWords2->add(ItemWordRecord::from([
             'normalized' => 'montreal',
-            'ngrams' => Sequential::from($this->ngramService->generate('montreal')->toArray()),
+            'ngrams' => StringTypedCollection::from($this->ngramService->generate('montreal')->toArray()),
             'max_score' => FloatVO::from(2.0),
         ]));
 
@@ -676,20 +676,20 @@ final class QueryProcessorServiceTest extends IntegrationTestCase
         $queryWords->add(QueryWordRecord::from([
             'original' => StringVO::from('saint denis'),
             'normalized' => StringVO::from('saint denis'),
-            'ngrams' => Sequential::from($this->ngramService->generate('saintdenis')->toArray()),
+            'ngrams' => StringTypedCollection::from($this->ngramService->generate('saintdenis')->toArray()),
         ]));
 
         $itemWords1 = new ItemWordsCollection;
         $itemWords1->add(ItemWordRecord::from([
             'normalized' => 'saint-denis',
-            'ngrams' => Sequential::from($this->ngramService->generate('saint-denis')->toArray()),
+            'ngrams' => StringTypedCollection::from($this->ngramService->generate('saint-denis')->toArray()),
             'max_score' => FloatVO::from(2.5),
         ]));
 
         $itemWords2 = new ItemWordsCollection;
         $itemWords2->add(ItemWordRecord::from([
             'normalized' => 'saint denis',
-            'ngrams' => Sequential::from($this->ngramService->generate('saintdenis')->toArray()),
+            'ngrams' => StringTypedCollection::from($this->ngramService->generate('saintdenis')->toArray()),
             'max_score' => FloatVO::from(2.5),
         ]));
 
@@ -713,27 +713,27 @@ final class QueryProcessorServiceTest extends IntegrationTestCase
         $queryWords->add(QueryWordRecord::from([
             'original' => StringVO::from('apple'),
             'normalized' => StringVO::from('apple'),
-            'ngrams' => Sequential::from($this->ngramService->generate('apple')->toArray()),
+            'ngrams' => StringTypedCollection::from($this->ngramService->generate('apple')->toArray()),
         ]));
 
         $itemWords1 = new ItemWordsCollection;
         $itemWords1->add(ItemWordRecord::from([
             'normalized' => 'apple inc',
-            'ngrams' => Sequential::from($this->ngramService->generate('appleinc')->toArray()),
+            'ngrams' => StringTypedCollection::from($this->ngramService->generate('appleinc')->toArray()),
             'max_score' => FloatVO::from(2.0),
         ]));
 
         $itemWords2 = new ItemWordsCollection;
         $itemWords2->add(ItemWordRecord::from([
             'normalized' => 'apple store',
-            'ngrams' => Sequential::from($this->ngramService->generate('applestore')->toArray()),
+            'ngrams' => StringTypedCollection::from($this->ngramService->generate('applestore')->toArray()),
             'max_score' => FloatVO::from(2.0),
         ]));
 
         $itemWords3 = new ItemWordsCollection;
         $itemWords3->add(ItemWordRecord::from([
             'normalized' => 'aple',
-            'ngrams' => Sequential::from($this->ngramService->generate('aple')->toArray()),
+            'ngrams' => StringTypedCollection::from($this->ngramService->generate('aple')->toArray()),
             'max_score' => FloatVO::from(1.5),
         ]));
 
@@ -760,20 +760,20 @@ final class QueryProcessorServiceTest extends IntegrationTestCase
         $queryWords->add(QueryWordRecord::from([
             'original' => StringVO::from('inception'),
             'normalized' => StringVO::from('inception'),
-            'ngrams' => Sequential::from($this->ngramService->generate('inception')->toArray()),
+            'ngrams' => StringTypedCollection::from($this->ngramService->generate('inception')->toArray()),
         ]));
 
         $itemWords1 = new ItemWordsCollection;
         $itemWords1->add(ItemWordRecord::from([
             'normalized' => 'inception',
-            'ngrams' => Sequential::from($this->ngramService->generate('inception')->toArray()),
+            'ngrams' => StringTypedCollection::from($this->ngramService->generate('inception')->toArray()),
             'max_score' => FloatVO::from(2.5),
         ]));
 
         $itemWords2 = new ItemWordsCollection;
         $itemWords2->add(ItemWordRecord::from([
             'normalized' => 'incepion',
-            'ngrams' => Sequential::from($this->ngramService->generate('incepion')->toArray()),
+            'ngrams' => StringTypedCollection::from($this->ngramService->generate('incepion')->toArray()),
             'max_score' => FloatVO::from(2.5),
         ]));
 
@@ -797,20 +797,20 @@ final class QueryProcessorServiceTest extends IntegrationTestCase
         $queryWords->add(QueryWordRecord::from([
             'original' => StringVO::from('contact'),
             'normalized' => StringVO::from('contact'),
-            'ngrams' => Sequential::from($this->ngramService->generate('contact')->toArray()),
+            'ngrams' => StringTypedCollection::from($this->ngramService->generate('contact')->toArray()),
         ]));
 
         $itemWords1 = new ItemWordsCollection;
         $itemWords1->add(ItemWordRecord::from([
             'normalized' => 'contact example com',
-            'ngrams' => Sequential::from($this->ngramService->generate('contactexamplecom')->toArray()),
+            'ngrams' => StringTypedCollection::from($this->ngramService->generate('contactexamplecom')->toArray()),
             'max_score' => FloatVO::from(3.0),
         ]));
 
         $itemWords2 = new ItemWordsCollection;
         $itemWords2->add(ItemWordRecord::from([
             'normalized' => 'contato example com',
-            'ngrams' => Sequential::from($this->ngramService->generate('contatoexamplecom')->toArray()),
+            'ngrams' => StringTypedCollection::from($this->ngramService->generate('contatoexamplecom')->toArray()),
             'max_score' => FloatVO::from(3.0),
         ]));
 
@@ -834,20 +834,20 @@ final class QueryProcessorServiceTest extends IntegrationTestCase
         $queryWords->add(QueryWordRecord::from([
             'original' => StringVO::from('rue de la paix'),
             'normalized' => StringVO::from('rue de la paix'),
-            'ngrams' => Sequential::from($this->ngramService->generate('ruedelapaix')->toArray()),
+            'ngrams' => StringTypedCollection::from($this->ngramService->generate('ruedelapaix')->toArray()),
         ]));
 
         $itemWords1 = new ItemWordsCollection;
         $itemWords1->add(ItemWordRecord::from([
             'normalized' => 'rue de la paix',
-            'ngrams' => Sequential::from($this->ngramService->generate('ruedelapaix')->toArray()),
+            'ngrams' => StringTypedCollection::from($this->ngramService->generate('ruedelapaix')->toArray()),
             'max_score' => FloatVO::from(3.0),
         ]));
 
         $itemWords2 = new ItemWordsCollection;
         $itemWords2->add(ItemWordRecord::from([
             'normalized' => 'rue paix',
-            'ngrams' => Sequential::from($this->ngramService->generate('ruepaix')->toArray()),
+            'ngrams' => StringTypedCollection::from($this->ngramService->generate('ruepaix')->toArray()),
             'max_score' => FloatVO::from(2.0),
         ]));
 
@@ -871,27 +871,27 @@ final class QueryProcessorServiceTest extends IntegrationTestCase
         $queryWords->add(QueryWordRecord::from([
             'original' => StringVO::from('chemise'),
             'normalized' => StringVO::from('chemise'),
-            'ngrams' => Sequential::from($this->ngramService->generate('chemise')->toArray()),
+            'ngrams' => StringTypedCollection::from($this->ngramService->generate('chemise')->toArray()),
         ]));
 
         $itemWords1 = new ItemWordsCollection;
         $itemWords1->add(ItemWordRecord::from([
             'normalized' => 'chemise',
-            'ngrams' => Sequential::from($this->ngramService->generate('chemise')->toArray()),
+            'ngrams' => StringTypedCollection::from($this->ngramService->generate('chemise')->toArray()),
             'max_score' => FloatVO::from(2.0),
         ]));
 
         $itemWords2 = new ItemWordsCollection;
         $itemWords2->add(ItemWordRecord::from([
             'normalized' => 'chemises',
-            'ngrams' => Sequential::from($this->ngramService->generate('chemises')->toArray()),
+            'ngrams' => StringTypedCollection::from($this->ngramService->generate('chemises')->toArray()),
             'max_score' => FloatVO::from(2.0),
         ]));
 
         $itemWords3 = new ItemWordsCollection;
         $itemWords3->add(ItemWordRecord::from([
             'normalized' => 'chemisier',
-            'ngrams' => Sequential::from($this->ngramService->generate('chemisier')->toArray()),
+            'ngrams' => StringTypedCollection::from($this->ngramService->generate('chemisier')->toArray()),
             'max_score' => FloatVO::from(2.0),
         ]));
 

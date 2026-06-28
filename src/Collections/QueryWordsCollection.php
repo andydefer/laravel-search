@@ -5,7 +5,7 @@ declare(strict_types=1);
 namespace AndyDefer\LaravelSearch\Collections;
 
 use AndyDefer\DomainStructures\Abstracts\AbstractTypedCollection;
-use AndyDefer\DomainStructures\Utils\Sequential;
+use AndyDefer\DomainStructures\Collections\Utility\StringTypedCollection;
 use AndyDefer\LaravelSearch\Records\QueryWordRecord;
 
 final class QueryWordsCollection extends AbstractTypedCollection
@@ -15,19 +15,19 @@ final class QueryWordsCollection extends AbstractTypedCollection
         parent::__construct(QueryWordRecord::class);
     }
 
-    public function getAllNgrams(): Sequential
+    public function getAllNgrams(): StringTypedCollection
     {
         $ngrams = [];
         foreach ($this->items as $word) {
             $ngrams = array_merge($ngrams, $word->ngrams->toArray());
         }
 
-        return Sequential::from(array_unique($ngrams));
+        return StringTypedCollection::from(array_unique($ngrams));
     }
 
-    public function getNormalizedWords(): Sequential
+    public function getNormalizedWords(): StringTypedCollection
     {
-        return Sequential::from(
+        return StringTypedCollection::from(
             array_map(fn (QueryWordRecord $word) => $word->normalized, $this->items)
         );
     }

@@ -4,13 +4,16 @@ declare(strict_types=1);
 
 namespace AndyDefer\LaravelSearch\Tests\Integration\Repositories;
 
-use AndyDefer\DomainStructures\Utils\Sequential;
+use AndyDefer\DomainStructures\Collections\Utility\StringTypedCollection;
+use AndyDefer\LaravelSearch\Collections\WordVectorCollection;
 use AndyDefer\LaravelSearch\Models\SearchIndex;
 use AndyDefer\LaravelSearch\Records\SearchIndexFiltersRecord;
 use AndyDefer\LaravelSearch\Records\SearchIndexRecord;
+use AndyDefer\LaravelSearch\Records\WordVectorRecord;
 use AndyDefer\LaravelSearch\Repositories\SearchIndexRepository;
 use AndyDefer\LaravelSearch\Services\NgramService;
 use AndyDefer\LaravelSearch\Services\TextNormalizerService;
+use AndyDefer\LaravelSearch\Services\WordVectorParserService;
 use AndyDefer\LaravelSearch\Tests\IntegrationTestCase;
 use AndyDefer\LaravelSearch\ValueObjects\SearchCandidatesVO;
 use AndyDefer\PhpVo\ValueObjects\Strings\UuidVO;
@@ -26,29 +29,33 @@ final class SearchIndexRepositoryTest extends IntegrationTestCase
 
     private NgramService $ngramService;
 
+    private WordVectorParserService $wordVectorParser;
+
     protected function setUp(): void
     {
         parent::setUp();
         $this->normalizer = $this->app->make(TextNormalizerService::class);
         $this->ngramService = $this->app->make(NgramService::class);
-        $this->repository = new SearchIndexRepository($this->ngramService);
+        $this->wordVectorParser = $this->app->make(WordVectorParserService::class);
+        $this->repository = new SearchIndexRepository($this->ngramService, $this->wordVectorParser);
     }
 
     public function test_create(): void
     {
-        $words = Sequential::from(['john', 'doe']);
-        $ngrams = Sequential::from($this->ngramService->generateFromText('John Doe')->toArray());
+        $words = $this->wordVectorParser->parse(explode(' ', strtolower('John Doe')));
+        $uris = $this->wordVectorParser->unparse($words);
+        $ngrams = $this->ngramService->generateFromText('John Doe')->toArray();
 
-        $record = new SearchIndexRecord(
-            id: UuidVO::generate(),
-            searchable_type: StringVO::from('App\Models\User'),
-            searchable_id: StringVO::from('1'),
-            source_column: StringVO::from('name'),
-            original_text: StringVO::from('John Doe'),
-            normalized_text: StringVO::from($this->normalizer->normalize('John Doe')),
-            item_words: $words,
-            ngrams: $ngrams,
-        );
+        $record = SearchIndexRecord::from([
+            'id' => UuidVO::generate(),
+            'searchable_type' => 'App\Models\User',
+            'searchable_id' => '1',
+            'source_column' => 'name',
+            'original_text' => 'John Doe',
+            'normalized_text' => $this->normalizer->normalize('John Doe'),
+            'item_words' => $uris,
+            'ngrams' => $ngrams,
+        ]);
 
         $index = $this->repository->create($record);
 
@@ -59,7 +66,7 @@ final class SearchIndexRepositoryTest extends IntegrationTestCase
         $this->assertSame('name', $index->source_column);
         $this->assertSame('John Doe', $index->original_text);
         $this->assertSame('john doe', $index->normalized_text);
-        $this->assertSame(['john', 'doe'], $index->item_words);
+        $this->assertNotEmpty($index->item_words);
         $this->assertNotEmpty($index->ngrams);
     }
 
@@ -202,11 +209,16 @@ final class SearchIndexRepositoryTest extends IntegrationTestCase
         $this->createIndex('Bob Thompson', 'name');
 
         $normalized = $this->normalizer->normalize('John');
-        $words = Sequential::from(explode(' ', $normalized));
-        $ngrams = Sequential::from($this->ngramService->generateFromText('John')->toArray());
+        $words = explode(' ', $normalized);
+        $ngrams = $this->ngramService->generateFromText('John')->toArray();
         $filters = new SearchIndexFiltersRecord;
 
-        $candidatesVO = new SearchCandidatesVO($words, $ngrams, $filters, 10);
+        $candidatesVO = new SearchCandidatesVO(
+            words: StringTypedCollection::from($words),
+            ngrams: StringTypedCollection::from($ngrams),
+            filters: $filters,
+            limit: 10
+        );
 
         $results = $this->repository->findCandidates($candidatesVO);
 
@@ -222,13 +234,18 @@ final class SearchIndexRepositoryTest extends IntegrationTestCase
         $this->createIndex('John Doe', 'name', 'App\Models\Product', '1');
 
         $normalized = $this->normalizer->normalize('John');
-        $words = Sequential::from(explode(' ', $normalized));
-        $ngrams = Sequential::from($this->ngramService->generateFromText('John')->toArray());
+        $words = explode(' ', $normalized);
+        $ngrams = $this->ngramService->generateFromText('John')->toArray();
         $filters = SearchIndexFiltersRecord::from([
-            'searchable_type' => StringVO::from('App\Models\User'),
+            'searchable_type' => 'App\Models\User',
         ]);
 
-        $candidatesVO = new SearchCandidatesVO($words, $ngrams, $filters, 10);
+        $candidatesVO = new SearchCandidatesVO(
+            words: StringTypedCollection::from($words),
+            ngrams: StringTypedCollection::from($ngrams),
+            filters: $filters,
+            limit: 10
+        );
 
         $results = $this->repository->findCandidates($candidatesVO);
 
@@ -356,9 +373,12 @@ final class SearchIndexRepositoryTest extends IntegrationTestCase
         $this->createIndex('John Doe', 'name');
         $this->createIndex('Jane Smith', 'name');
 
-        $filters = new SearchIndexFiltersRecord(
-            item_words: Sequential::from(['john']),
-        );
+        $words = $this->wordVectorParser->parse(['john']);
+        $uris = $this->wordVectorParser->unparse($words);
+
+        $filters = SearchIndexFiltersRecord::from([
+            'item_words' => $uris,
+        ]);
 
         $count = $this->repository->countByFilters($filters);
 
@@ -370,10 +390,10 @@ final class SearchIndexRepositoryTest extends IntegrationTestCase
         $this->createIndex('John Doe', 'name');
         $this->createIndex('Jane Smith', 'name');
 
-        $ngrams = Sequential::from($this->ngramService->generate('john')->toArray());
+        $ngrams = $this->ngramService->generate('john')->toArray();
 
         $filters = new SearchIndexFiltersRecord(
-            ngrams: $ngrams,
+            ngrams: StringTypedCollection::from($ngrams),
         );
 
         $count = $this->repository->countByFilters($filters);
@@ -466,6 +486,154 @@ final class SearchIndexRepositoryTest extends IntegrationTestCase
         $this->assertEquals(5, $count);
     }
 
+    // ============================================================
+    // TESTS POUR findCandidatesBySimilarity
+    // ============================================================
+
+    public function test_find_candidates_by_similarity(): void
+    {
+        $this->createIndex('John Doe', 'name');
+        $this->createIndex('Jane Smith', 'name');
+        $this->createIndex('Bob Johnson', 'name');
+
+        $queryWords = $this->wordVectorParser->parse(['john']);
+        $normalized = $this->normalizer->normalize('John');
+        $words = explode(' ', $normalized);
+        $ngrams = $this->ngramService->generateFromText('John')->toArray();
+        $filters = new SearchIndexFiltersRecord;
+
+        $candidatesVO = new SearchCandidatesVO(
+            words: StringTypedCollection::from($words),
+            ngrams: StringTypedCollection::from($ngrams),
+            filters: $filters,
+            limit: 10
+        );
+
+        $results = $this->repository->findCandidatesBySimilarity($candidatesVO, $queryWords, 2, 1);
+
+        $this->assertCount(1, $results);
+        $this->assertSame('John Doe', $results->first()->original_text);
+    }
+
+    public function test_find_candidates_by_similarity_with_filters(): void
+    {
+        $this->createIndex('John Doe', 'name', 'App\Models\User', '1');
+        $this->createIndex('Jane Smith', 'name', 'App\Models\User', '2');
+        $this->createIndex('John Doe', 'name', 'App\Models\Product', '1');
+
+        $queryWords = $this->wordVectorParser->parse(['john']);
+        $normalized = $this->normalizer->normalize('John');
+        $words = explode(' ', $normalized);
+        $ngrams = $this->ngramService->generateFromText('John')->toArray();
+        $filters = SearchIndexFiltersRecord::from([
+            'searchable_type' => 'App\Models\User',
+        ]);
+
+        $candidatesVO = new SearchCandidatesVO(
+            words: StringTypedCollection::from($words),
+            ngrams: StringTypedCollection::from($ngrams),
+            filters: $filters,
+            limit: 10
+        );
+
+        $results = $this->repository->findCandidatesBySimilarity($candidatesVO, $queryWords, 2, 1);
+
+        $this->assertCount(1, $results);
+        $this->assertSame('John Doe', $results->first()->original_text);
+        $this->assertSame('App\Models\User', $results->first()->searchable_type);
+    }
+
+    public function test_find_candidates_by_similarity_with_no_match(): void
+    {
+        $this->createIndex('John Doe', 'name');
+
+        $queryWords = $this->wordVectorParser->parse(['xyz']);
+        $normalized = $this->normalizer->normalize('xyz');
+        $words = explode(' ', $normalized);
+        $ngrams = $this->ngramService->generateFromText('xyz')->toArray();
+        $filters = new SearchIndexFiltersRecord;
+
+        $candidatesVO = new SearchCandidatesVO(
+            words: StringTypedCollection::from($words),
+            ngrams: StringTypedCollection::from($ngrams),
+            filters: $filters,
+            limit: 10
+        );
+
+        $results = $this->repository->findCandidatesBySimilarity($candidatesVO, $queryWords, 2, 1);
+
+        $this->assertCount(0, $results);
+    }
+
+    public function test_find_candidates_by_similarity_with_limit(): void
+    {
+        for ($i = 0; $i < 5; $i++) {
+            $this->createIndex("User {$i}", 'name');
+        }
+
+        $queryWords = $this->wordVectorParser->parse(['user']);
+        $normalized = $this->normalizer->normalize('User');
+        $words = explode(' ', $normalized);
+        $ngrams = $this->ngramService->generateFromText('User')->toArray();
+        $filters = new SearchIndexFiltersRecord;
+
+        $candidatesVO = new SearchCandidatesVO(
+            words: StringTypedCollection::from($words),
+            ngrams: StringTypedCollection::from($ngrams),
+            filters: $filters,
+            limit: 3
+        );
+
+        $results = $this->repository->findCandidatesBySimilarity($candidatesVO, $queryWords, 2, 1);
+
+        $this->assertCount(3, $results);
+    }
+
+    // ============================================================
+    // TESTS POUR WordVectorParser
+    // ============================================================
+
+    public function test_word_vector_parser_parse(): void
+    {
+        $words = ['test', 'hello'];
+        $collection = $this->wordVectorParser->parse($words);
+
+        $this->assertInstanceOf(WordVectorCollection::class, $collection);
+        $this->assertEquals(2, $collection->count());
+
+        foreach ($collection as $record) {
+            $this->assertInstanceOf(WordVectorRecord::class, $record);
+            $this->assertNotEmpty($record->word);
+            $this->assertNotEmpty($record->metaphone);
+            $this->assertNotEmpty($record->bigrams->toArray());
+            $this->assertNotEmpty($record->metaphone_bigrams->toArray());
+        }
+    }
+
+    public function test_word_vector_parser_unparse(): void
+    {
+        $words = ['test'];
+        $collection = $this->wordVectorParser->parse($words);
+        $uris = $this->wordVectorParser->unparse($collection);
+
+        $this->assertIsArray($uris);
+        $this->assertCount(1, $uris);
+        $this->assertStringContainsString('test?', $uris[0]);
+        $this->assertStringContainsString('metaphone=', $uris[0]);
+        $this->assertStringContainsString('bigrams=', $uris[0]);
+    }
+
+    public function test_word_vector_parser_empty_array(): void
+    {
+        $collection = $this->wordVectorParser->parse([]);
+        $this->assertInstanceOf(WordVectorCollection::class, $collection);
+        $this->assertEquals(0, $collection->count());
+
+        $uris = $this->wordVectorParser->unparse($collection);
+        $this->assertIsArray($uris);
+        $this->assertEmpty($uris);
+    }
+
     public function test_delete(): void
     {
         $index = $this->createIndex('John Doe', 'name');
@@ -483,7 +651,7 @@ final class SearchIndexRepositoryTest extends IntegrationTestCase
         $this->createIndex('Product A', 'name', 'App\Models\Product', '1');
 
         $filters = SearchIndexFiltersRecord::from([
-            'searchable_type' => StringVO::from('App\Models\User'),
+            'searchable_type' => 'App\Models\User',
         ]);
 
         $count = $this->repository->deleteBulk($filters);
@@ -501,19 +669,20 @@ final class SearchIndexRepositoryTest extends IntegrationTestCase
         string $type = 'App\Models\User',
         string $id = '1'
     ): SearchIndex {
-        $words = Sequential::from(explode(' ', strtolower($text)));
-        $ngrams = Sequential::from($this->ngramService->generateFromText($text)->toArray());
+        $words = $this->wordVectorParser->parse(explode(' ', strtolower($text)));
+        $uris = $this->wordVectorParser->unparse($words);
+        $ngrams = $this->ngramService->generateFromText($text)->toArray();
 
-        $record = new SearchIndexRecord(
-            id: UuidVO::generate(),
-            searchable_type: StringVO::from($type),
-            searchable_id: StringVO::from($id),
-            source_column: StringVO::from($column),
-            original_text: StringVO::from($text),
-            normalized_text: StringVO::from($this->normalizer->normalize($text)),
-            item_words: $words,
-            ngrams: $ngrams,
-        );
+        $record = SearchIndexRecord::from([
+            'id' => UuidVO::generate(),
+            'searchable_type' => $type,
+            'searchable_id' => $id,
+            'source_column' => $column,
+            'original_text' => $text,
+            'normalized_text' => $this->normalizer->normalize($text),
+            'item_words' => $uris,
+            'ngrams' => $ngrams,
+        ]);
 
         return $this->repository->create($record);
     }

@@ -6,10 +6,13 @@ namespace AndyDefer\LaravelSearch;
 
 use AndyDefer\LaravelSearch\Configs\SearchConfig;
 use AndyDefer\LaravelSearch\Repositories\SearchIndexRepository;
+use AndyDefer\LaravelSearch\Services\CandidatesFinderService;
 use AndyDefer\LaravelSearch\Services\NgramService;
 use AndyDefer\LaravelSearch\Services\QueryProcessorService;
+use AndyDefer\LaravelSearch\Services\SearchIndexService;
 use AndyDefer\LaravelSearch\Services\SearchService;
 use AndyDefer\LaravelSearch\Services\TextNormalizerService;
+use AndyDefer\LaravelSearch\Services\WordVectorParserService;
 use Illuminate\Contracts\Config\Repository as ConfigRepository;
 use Illuminate\Support\ServiceProvider;
 
@@ -43,6 +46,13 @@ class LaravelSearchServiceProvider extends ServiceProvider
             );
         });
 
+        $this->app->singleton(WordVectorParserService::class, function ($app) {
+            return new WordVectorParserService(
+                $app->make(TextNormalizerService::class),
+                $app->make(NgramService::class)
+            );
+        });
+
         $this->app->singleton(QueryProcessorService::class, function ($app) {
             return new QueryProcessorService(
                 $app->make(SearchConfig::class),
@@ -53,7 +63,18 @@ class LaravelSearchServiceProvider extends ServiceProvider
 
         $this->app->singleton(SearchIndexRepository::class, function ($app) {
             return new SearchIndexRepository(
-                $app->make(NgramService::class)
+                $app->make(NgramService::class),
+                $app->make(WordVectorParserService::class)
+            );
+        });
+
+        $this->app->singleton(CandidatesFinderService::class, function ($app) {
+            return new CandidatesFinderService(
+                $app->make(SearchIndexRepository::class),
+                $app->make(TextNormalizerService::class),
+                $app->make(NgramService::class),
+                $app->make(QueryProcessorService::class),
+                $app->make(WordVectorParserService::class)
             );
         });
 
@@ -63,7 +84,17 @@ class LaravelSearchServiceProvider extends ServiceProvider
                 $app->make(QueryProcessorService::class),
                 $app->make(SearchConfig::class),
                 $app->make(TextNormalizerService::class),
-                $app->make(NgramService::class)
+                $app->make(NgramService::class),
+                $app->make(CandidatesFinderService::class)
+            );
+        });
+
+        $this->app->singleton(SearchIndexService::class, function ($app) {
+            return new SearchIndexService(
+                $app->make(SearchIndexRepository::class),
+                $app->make(TextNormalizerService::class),
+                $app->make(NgramService::class),
+                $app->make(WordVectorParserService::class)
             );
         });
     }

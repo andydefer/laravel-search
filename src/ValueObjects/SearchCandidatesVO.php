@@ -5,23 +5,23 @@ declare(strict_types=1);
 namespace AndyDefer\LaravelSearch\ValueObjects;
 
 use AndyDefer\DomainStructures\Abstracts\AbstractValueObject;
-use AndyDefer\DomainStructures\Utils\Sequential;
+use AndyDefer\DomainStructures\Collections\Utility\StringTypedCollection;
 use AndyDefer\DomainStructures\Utils\StrictAssociative;
 use AndyDefer\LaravelSearch\Records\SearchIndexFiltersRecord;
 
 final class SearchCandidatesVO extends AbstractValueObject
 {
-    private Sequential $words;
+    private StringTypedCollection $words;
 
-    private Sequential $ngrams;
+    private StringTypedCollection $ngrams;
 
     private SearchIndexFiltersRecord $filters;
 
     private int $limit;
 
     public function __construct(
-        Sequential $words,
-        Sequential $ngrams,
+        StringTypedCollection $words,
+        StringTypedCollection $ngrams,
         SearchIndexFiltersRecord $filters,
         int $limit = 100
     ) {
@@ -34,19 +34,19 @@ final class SearchCandidatesVO extends AbstractValueObject
     public static function empty(int $limit = 100): self
     {
         return new self(
-            words: Sequential::from([]),
-            ngrams: Sequential::from([]),
+            words: StringTypedCollection::from([]),
+            ngrams: StringTypedCollection::from([]),
             filters: new SearchIndexFiltersRecord,
             limit: $limit,
         );
     }
 
-    public function getWords(): Sequential
+    public function getWords(): StringTypedCollection
     {
         return $this->words;
     }
 
-    public function getNgrams(): Sequential
+    public function getNgrams(): StringTypedCollection
     {
         return $this->ngrams;
     }

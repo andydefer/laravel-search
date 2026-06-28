@@ -5,7 +5,7 @@ declare(strict_types=1);
 namespace AndyDefer\LaravelSearch\Collections;
 
 use AndyDefer\DomainStructures\Abstracts\AbstractTypedCollection;
-use AndyDefer\DomainStructures\Utils\Sequential;
+use AndyDefer\DomainStructures\Collections\Utility\StringTypedCollection;
 use AndyDefer\LaravelSearch\Records\ItemWordRecord;
 
 final class ItemWordsCollection extends AbstractTypedCollection
@@ -15,9 +15,9 @@ final class ItemWordsCollection extends AbstractTypedCollection
         parent::__construct(ItemWordRecord::class);
     }
 
-    public function getNormalizedWords(): Sequential
+    public function getNormalizedWords(): StringTypedCollection
     {
-        return Sequential::from(
+        return StringTypedCollection::from(
             array_map(fn (ItemWordRecord $word) => $word->normalized, $this->items)
         );
     }
