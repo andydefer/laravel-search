@@ -18,6 +18,8 @@ interface TextNormalizerInterface
 
     public function removeSpecialChars(string $text): string;
 
+    public function removeEmojis(string $text): string;
+
     public function normalizeSpaces(string $text): string;
 
     public function hasSpecialChars(string $text): bool;

@@ -29,4 +29,6 @@ interface SearchConfigInterface
     public function getMaxCandidatesAfterFilter(): int;
 
     public function getMinCommonBigrams(): int;
+
+    public function getSearchablePaths(): array;
 }

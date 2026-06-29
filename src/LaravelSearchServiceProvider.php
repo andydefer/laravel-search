@@ -10,18 +10,23 @@ use AndyDefer\LaravelSearch\Contracts\Repositories\SearchIndexRepositoryInterfac
 use AndyDefer\LaravelSearch\Contracts\Services\CandidatesFinderInterface;
 use AndyDefer\LaravelSearch\Contracts\Services\NgramInterface;
 use AndyDefer\LaravelSearch\Contracts\Services\QueryProcessorInterface;
+use AndyDefer\LaravelSearch\Contracts\Services\SearchableModelDiscoveryInterface;
 use AndyDefer\LaravelSearch\Contracts\Services\SearchIndexInterface;
 use AndyDefer\LaravelSearch\Contracts\Services\SearchInterface;
 use AndyDefer\LaravelSearch\Contracts\Services\TextNormalizerInterface;
 use AndyDefer\LaravelSearch\Contracts\Services\WordVectorParserInterface;
+use AndyDefer\LaravelSearch\Directives\IndexDirective;
 use AndyDefer\LaravelSearch\Repositories\SearchIndexRepository;
 use AndyDefer\LaravelSearch\Services\CandidatesFinderService;
 use AndyDefer\LaravelSearch\Services\NgramService;
 use AndyDefer\LaravelSearch\Services\QueryProcessorService;
+use AndyDefer\LaravelSearch\Services\SearchableModelDiscoveryService;
 use AndyDefer\LaravelSearch\Services\SearchIndexService;
 use AndyDefer\LaravelSearch\Services\SearchService;
 use AndyDefer\LaravelSearch\Services\TextNormalizerService;
 use AndyDefer\LaravelSearch\Services\WordVectorParserService;
+use AndyDefer\PhpServices\Contracts\FileSystemInterface;
+use AndyDefer\PhpServices\Services\FileSystemService;
 use Illuminate\Contracts\Config\Repository as ConfigRepository;
 use Illuminate\Support\ServiceProvider;
 
@@ -31,7 +36,7 @@ class LaravelSearchServiceProvider extends ServiceProvider
     {
         // Configuration
         $this->mergeConfigFrom(
-            __DIR__.'/../config/laravel-search.php',
+            __DIR__.'/../config/search.php',
             'search'
         );
 
@@ -45,6 +50,8 @@ class LaravelSearchServiceProvider extends ServiceProvider
         $this->app->bind(CandidatesFinderInterface::class, CandidatesFinderService::class);
         $this->app->bind(SearchInterface::class, SearchService::class);
         $this->app->bind(SearchIndexInterface::class, SearchIndexService::class);
+        $this->app->bind(SearchableModelDiscoveryInterface::class, SearchableModelDiscoveryService::class);
+        $this->app->bind(FileSystemInterface::class, FileSystemService::class);
 
         // Services
         $this->app->singleton(SearchConfig::class, function ($app) {
@@ -118,16 +125,31 @@ class LaravelSearchServiceProvider extends ServiceProvider
                 $app->make(WordVectorParserService::class)
             );
         });
+
+        $this->app->singleton(SearchableModelDiscoveryService::class, function ($app) {
+            return new SearchableModelDiscoveryService(
+                $app->make(FileSystemInterface::class),
+                $app->make(SearchConfig::class)
+            );
+        });
+
+        // Directives
+
     }
 
     public function boot(): void
     {
         $this->publishes([
-            __DIR__.'/../config/laravel-search.php' => config_path('laravel-search.php'),
+            __DIR__.'/../config/search.php' => config_path('search.php'),
         ], 'search-config');
 
         $this->publishes([
             __DIR__.'/../database/migrations/' => database_path('migrations'),
         ], 'search-migrations');
+
+        // Enregistrer les directives
+        if ($this->app->has('directive')) {
+            $this->app->make('directive')->register(IndexDirective::class);
+        }
     }
 }

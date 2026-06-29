@@ -32,6 +32,13 @@ final class SearchConfig implements SearchConfigInterface
 
     private const DEFAULT_MIN_COMMON_BIGRAMS = 2;
 
+    private const DEFAULT_SEARCHABLE_PATHS = [
+        'app/Models',
+        'app',
+        'src/Models',
+        'src',
+    ];
+
     public function __construct(
         private readonly ConfigRepository $config,
     ) {}
@@ -96,5 +103,23 @@ final class SearchConfig implements SearchConfigInterface
     public function getMinCommonBigrams(): int
     {
         return $this->config->get('search.min_common_bigrams', self::DEFAULT_MIN_COMMON_BIGRAMS);
+    }
+
+    public function getSearchablePaths(): array
+    {
+        $paths = $this->config->get('search.searchable_paths', self::DEFAULT_SEARCHABLE_PATHS);
+
+        $absolutePaths = [];
+        foreach ($paths as $path) {
+            if (str_starts_with($path, 'app/') || $path === 'app') {
+                $absolutePaths[] = app_path(str_replace('app/', '', $path));
+            } elseif (str_starts_with($path, 'src/') || $path === 'src') {
+                $absolutePaths[] = base_path($path);
+            } else {
+                $absolutePaths[] = $path;
+            }
+        }
+
+        return array_unique($absolutePaths);
     }
 }

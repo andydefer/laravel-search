@@ -4,14 +4,21 @@ declare(strict_types=1);
 
 namespace AndyDefer\LaravelSearch\Tests;
 
+use AndyDefer\Directive\DirectiveServiceProvider;
 use AndyDefer\LaravelSearch\LaravelSearchServiceProvider;
 use Orchestra\Testbench\TestCase as Orchestra;
 
 abstract class IntegrationTestCase extends Orchestra
 {
+    protected function stripAnsi(string $text): string
+    {
+        return preg_replace('/\033\[[0-9;]+m/', '', $text);
+    }
+
     protected function getPackageProviders($app): array
     {
         return [
+            DirectiveServiceProvider::class,
             LaravelSearchServiceProvider::class,
         ];
     }

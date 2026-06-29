@@ -133,6 +133,7 @@ final class TextNormalizerService implements TextNormalizerInterface
         // Remplacer les tirets par des espaces pour les mots composés
         $text = str_replace('-', ' ', $text);
 
+        $text = $this->removeEmojis($text);
         $text = $this->removeDiacritics($text);
         $text = $this->removeCurrencySymbols($text);
         $text = $this->removeElidedArticles($text);
@@ -165,6 +166,13 @@ final class TextNormalizerService implements TextNormalizerInterface
         }
 
         return $text;
+    }
+
+    public function removeEmojis(string $text): string
+    {
+        $cleaned = preg_replace('/\p{Extended_Pictographic}/u', '', $text);
+
+        return $cleaned ?? ' ';
     }
 
     public function removeDiacritics(string $text): string

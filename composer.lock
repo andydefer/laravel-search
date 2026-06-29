@@ -4,7 +4,7 @@
         "Read more about it at https://getcomposer.org/doc/01-basic-usage.md#installing-dependencies",
         "This file is @generated automatically"
     ],
-    "content-hash": "d630aab8a3ef2783176d5aee4ac03185",
+    "content-hash": "8f20214b0a09396c77b8514cc171a462",
     "packages": [
         {
             "name": "andydefer/domain-structures",
@@ -56,6 +56,70 @@
                 "source": "https://github.com/andydefer/domain-structures/tree/v1.21.1"
             },
             "time": "2026-06-25T06:24:29+00:00"
+        },
+        {
+            "name": "andydefer/laravel-directive",
+            "version": "v3.31.2",
+            "source": {
+                "type": "git",
+                "url": "https://github.com/andydefer/laravel-directive.git",
+                "reference": "e3bcb814dab27ee77c0f71436b34e1c3397f6071"
+            },
+            "dist": {
+                "type": "zip",
+                "url": "https://api.github.com/repos/andydefer/laravel-directive/zipball/e3bcb814dab27ee77c0f71436b34e1c3397f6071",
+                "reference": "e3bcb814dab27ee77c0f71436b34e1c3397f6071",
+                "shasum": ""
+            },
+            "require": {
+                "andydefer/php-services": "^1.2.0",
+                "andydefer/php-signature-parser": "^0.2.3",
+                "laravel/framework": "^12.0|^13.0|^14.0|^15.0",
+                "php": ">=8.1"
+            },
+            "require-dev": {
+                "barryvdh/laravel-ide-helper": "^3.6",
+                "composer/composer": "^2.0",
+                "larastan/larastan": "^3.8",
+                "laravel/pint": "^1.26",
+                "orchestra/testbench": "^10.8",
+                "phpunit/phpunit": "^12.5",
+                "rector/rector": "*",
+                "symfony/var-dumper": "^7.0",
+                "vimeo/psalm": "^6.14"
+            },
+            "bin": [
+                "bin/directive"
+            ],
+            "type": "library",
+            "extra": {
+                "laravel": {
+                    "providers": [
+                        "AndyDefer\\Directive\\DirectiveServiceProvider"
+                    ]
+                }
+            },
+            "autoload": {
+                "psr-4": {
+                    "AndyDefer\\Directive\\": "src/"
+                }
+            },
+            "notification-url": "https://packagist.org/downloads/",
+            "license": [
+                "MIT"
+            ],
+            "authors": [
+                {
+                    "name": "Andy Defer",
+                    "email": "andykanidimbu@gmail.com"
+                }
+            ],
+            "description": "A flexible CLI command system for Laravel that breaks free from Artisan's constraints. Directives introduces a clean separation between what your command does (business logic) and how it's presented (output/UI).",
+            "support": {
+                "issues": "https://github.com/andydefer/laravel-directive/issues",
+                "source": "https://github.com/andydefer/laravel-directive/tree/v3.31.2"
+            },
+            "time": "2026-06-26T18:40:29+00:00"
         },
         {
             "name": "andydefer/laravel-repository",
@@ -111,6 +175,149 @@
                 "source": "https://github.com/andydefer/laravel-repository/tree/v2.9.2"
             },
             "time": "2026-06-26T18:39:46+00:00"
+        },
+        {
+            "name": "andydefer/php-console",
+            "version": "v1.2.1",
+            "source": {
+                "type": "git",
+                "url": "https://github.com/andydefer/php-console.git",
+                "reference": "e6ae05ea93fc08f7d003713a1652e35522d538ad"
+            },
+            "dist": {
+                "type": "zip",
+                "url": "https://api.github.com/repos/andydefer/php-console/zipball/e6ae05ea93fc08f7d003713a1652e35522d538ad",
+                "reference": "e6ae05ea93fc08f7d003713a1652e35522d538ad",
+                "shasum": ""
+            },
+            "require": {
+                "andydefer/php-vo": "^0.11.0",
+                "php": ">=8.0"
+            },
+            "require-dev": {
+                "laravel/pint": "^1.29",
+                "mockery/mockery": "^1.6",
+                "orchestra/testbench": "^9.0|^10.0",
+                "phpunit/phpunit": "^10.5|^11.0|^12.0"
+            },
+            "type": "library",
+            "autoload": {
+                "psr-4": {
+                    "AndyDefer\\ConsoleWriter\\": "src/"
+                }
+            },
+            "notification-url": "https://packagist.org/downloads/",
+            "license": [
+                "MIT"
+            ],
+            "authors": [
+                {
+                    "name": "Andy Defer",
+                    "email": "andykanidimbu@gmail.com"
+                }
+            ],
+            "description": "A simple and elegant console output writer for PHP with styled components",
+            "support": {
+                "issues": "https://github.com/andydefer/php-console/issues",
+                "source": "https://github.com/andydefer/php-console/tree/v1.2.1"
+            },
+            "time": "2026-06-26T18:18:29+00:00"
+        },
+        {
+            "name": "andydefer/php-services",
+            "version": "v1.2.1",
+            "source": {
+                "type": "git",
+                "url": "https://github.com/andydefer/php-services.git",
+                "reference": "ba80b1ed6d348e772ccd736dc91fd8a09aba4f26"
+            },
+            "dist": {
+                "type": "zip",
+                "url": "https://api.github.com/repos/andydefer/php-services/zipball/ba80b1ed6d348e772ccd736dc91fd8a09aba4f26",
+                "reference": "ba80b1ed6d348e772ccd736dc91fd8a09aba4f26",
+                "shasum": ""
+            },
+            "require": {
+                "andydefer/php-vo": "^0.11.0",
+                "php": "^8.2"
+            },
+            "require-dev": {
+                "composer/composer": "^2.0",
+                "laravel/pint": "^1.29",
+                "mockery/mockery": "^1.6",
+                "phpunit/phpunit": "^12.5",
+                "rector/rector": "*",
+                "vimeo/psalm": "^6.14"
+            },
+            "type": "library",
+            "autoload": {
+                "psr-4": {
+                    "AndyDefer\\PhpServices\\": "src/"
+                }
+            },
+            "notification-url": "https://packagist.org/downloads/",
+            "license": [
+                "MIT"
+            ],
+            "authors": [
+                {
+                    "name": "Andy Kani",
+                    "email": "andykanidimbu@gmail.com"
+                }
+            ],
+            "description": "Collection of reusable services for PHP and Laravel applications including model transformation, caching, and common business logic",
+            "support": {
+                "issues": "https://github.com/andydefer/php-services/issues",
+                "source": "https://github.com/andydefer/php-services/tree/v1.2.1"
+            },
+            "time": "2026-06-26T18:40:38+00:00"
+        },
+        {
+            "name": "andydefer/php-signature-parser",
+            "version": "v0.2.3",
+            "source": {
+                "type": "git",
+                "url": "https://github.com/andydefer/php-signature-parser.git",
+                "reference": "2caa33ab9b3eb2ead8fb65d33f29a0b7d3144935"
+            },
+            "dist": {
+                "type": "zip",
+                "url": "https://api.github.com/repos/andydefer/php-signature-parser/zipball/2caa33ab9b3eb2ead8fb65d33f29a0b7d3144935",
+                "reference": "2caa33ab9b3eb2ead8fb65d33f29a0b7d3144935",
+                "shasum": ""
+            },
+            "require": {
+                "andydefer/domain-structures": "^1.21.0",
+                "php": "^8.1"
+            },
+            "require-dev": {
+                "laravel/pint": "^1.29",
+                "phpunit/phpunit": "^13.2",
+                "rector/rector": "^2.4",
+                "symfony/var-dumper": "^8.1"
+            },
+            "type": "library",
+            "autoload": {
+                "psr-4": {
+                    "AndyDefer\\SignatureParser\\": "src/"
+                }
+            },
+            "notification-url": "https://packagist.org/downloads/",
+            "license": [
+                "MIT"
+            ],
+            "authors": [
+                {
+                    "name": "Andy Defer",
+                    "email": "andykanidimbu@gmail.com"
+                }
+            ],
+            "description": "A flexible signature parser for CLI commands",
+            "support": {
+                "issues": "https://github.com/andydefer/php-signature-parser/issues",
+                "source": "https://github.com/andydefer/php-signature-parser/tree/v0.2.3"
+            },
+            "time": "2026-06-26T15:56:17+00:00"
         },
         {
             "name": "andydefer/php-vo",
